@@ -65,10 +65,6 @@ days = [(i // samples_per_day) + 1 for i in range(sample_count)]
 print(f"Number of samples: {sample_count}")
 print(f"Number of days: {days[-1]}")
 
-# Generate sample indices
-samples = list(range(1, sample_count+1))
-
-
 fig, axs = plt.subplots(5, 1, figsize=(12, 8), sharex=True, num='Data Plots')
 
 # Plot Squid data
