@@ -7,7 +7,7 @@ def read_txt_file(file_path):
     return data
 
 
-def get_data(file_type, read_txt_file):
+def get_data(file_type, read_txt_file, num_files=7):
     """
     Retrieves data from multiple files and concatenates them into a single string.
 
@@ -20,7 +20,7 @@ def get_data(file_type, read_txt_file):
 
     """
     data = ''
-    for int in range(1, 8):
+    for int in range(1, num_files + 1):
         file_path = f'/Users/tristan/Library/CloudStorage/OneDrive-StellenboschUniversity/Academics/Final_year/Semester 2/Skripsie/Data/SANSA/2024-06-0{int}.{file_type}'
         data += read_txt_file(file_path)
     return data
