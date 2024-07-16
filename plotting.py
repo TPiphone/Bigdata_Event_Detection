@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 
 def read_txt_file(file_path):
     with open(file_path, 'r') as file:
@@ -27,34 +28,43 @@ def get_data(file_type, read_txt_file, num_files=7):
 data_mag = get_data('ctumag', read_txt_file)
 data_squid = get_data('squid', read_txt_file)
 
+def process_data(data):
+    data_lines = data.strip().split('\n')
+    data_array = pd.DataFrame([list(map(float, line.split())) for line in data_lines])
+    return data_array
 
-# Parse data
+data_array_mag = process_data(data_mag)
+data_array_sq = process_data(data_squid)
+# print(f"This is the mag head {data_array_mag.head()}")
+# print(f"This is the squid head {data_array_sq.head()}")
+
+# Check for missing values 
+print(f"Number of missing values in mag: {data_array_mag.isnull().sum()}")
+print(f"Number of missing values in squid: {data_array_sq.isnull().sum()}")
+
 # Squid data
-if data_squid:
-    lines = data_squid.strip().split('\n')
-    time = []
-    NS = []
-    Z = []
-    for line in lines:
-        parts = line.split()
-        time.append(float(parts[0]))
-        NS.append(float(parts[1]))
-        Z.append(float(parts[2]))
+def parse_squid_data(data_array_sq):
+    time = data_array_sq[0]
+    NSsq = data_array_sq[1]
+    Zsq = data_array_sq[2]
+    return time, NSsq, Zsq
+
+time, NSsq, Zsq = parse_squid_data(data_array_sq)
 
 # CTU Magnetometer data
-if data_mag:
-    lines = data_mag.strip().split('\n')
-    #time = []
-    NS = []
-    EW = []
-    Z = []
-    for line in lines:
-        parts = line.split()
-        #time.append(float(parts[0]))
-        NS.append(float(parts[1]))
-        EW.append(float(parts[2]))
-        Z.append(float(parts[3]))
+def parse_magnetic_data(data_array_mag):
+    timemag = data_array_mag[0]
+    NSmag = data_array_mag[1]
+    EWmag = data_array_mag[2]
+    Zmag = data_array_mag[3]
+    return timemag, NSmag, EWmag, Zmag
 
+timemag, NSmag, EWmag, Zmag = parse_magnetic_data(data_array_mag)
+# print first 5 values of time, NSsq, Zsq
+# print(f"First 5 values of array time: {timemag.head()}")
+# print(f"First 5 values of array NSmag: {NSmag.head()}")
+# print(f"First 5 values of array EWmag: {EWmag.head()}")
+# print(f"First 5 values of array Zmag: {Zmag.head()}")
 
 # Calculate the day index for each sample
 sample_count = len(time)
@@ -65,38 +75,57 @@ days = [(i // samples_per_day) + 1 for i in range(sample_count)]
 print(f"Number of samples: {sample_count}")
 print(f"Number of days: {days[-1]}")
 
-fig, axs = plt.subplots(5, 1, figsize=(12, 8), sharex=True, num='Data Plots')
+def generateDataPlots(NSsq, Zsq, NSmag, EWmag, Zmag, sample_count, samples_per_day):
+    """
+    Generates data plots for Squid and CTU Magnetometer data.
 
-# Plot Squid data
-axs[0].plot( NS, marker='.', color='orange')
-axs[0].set_title('Squid NS Component')
-axs[0].set_ylabel('NS nT (relative)')
+    Parameters:
+    NSsq (array-like): Array of NS Squid data.
+    Zsq (array-like): Array of Z Squid data.
+    NSmag (array-like): Array of NS Magnetometer data.
+    EWmag (array-like): Array of EW Magnetometer data.
+    Zmag (array-like): Array of Z Magnetometer data.
+    sample_count (int): Total number of samples.
+    samples_per_day (int): Number of samples per day.
 
-axs[1].plot( Z, marker='.', color='green')
-axs[1].set_title('Squid F Component')
-axs[1].set_ylabel('F nT (relative)')
+    Returns:
+    None
+    """
 
-# Plot CTU Magnetometer data
-axs[2].plot( NS, marker='.', color='orange')
-axs[2].set_title('MAG NS Component')
-axs[2].set_ylabel('NS nT')
+    fig, axs = plt.subplots(5, 1, figsize=(12, 8), sharex=True, num='Data Plots')
 
-axs[3].plot( EW, marker='.', color='blue')
-axs[3].set_title('MAG EW Component')
-axs[3].set_ylabel('EW nT')
+    # Plot Squid data
+    axs[0].plot(NSsq, marker='.', color='orange')
+    axs[0].set_title('Squid NS Component')
+    axs[0].set_ylabel('NS nT (relative)')
 
-axs[4].plot( Z, marker='.', color='green')
-axs[4].set_title('MAG Z Component')
-axs[4].set_ylabel('Z nT')
-axs[4].set_xlabel('Time (s)')
+    axs[1].plot(Zsq, marker='.', color='green')
+    axs[1].set_title('Squid F Component')
+    axs[1].set_ylabel('F nT (relative)')
 
-# Change x-axis labels to days
-num_ticks = 7
-tick_positions = np.linspace(-1, sample_count - 1, num_ticks)
-tick_labels = [(pos // samples_per_day) +1 for pos in tick_positions]
-axs[4].set_xticks(tick_positions)
-axs[4].set_xticklabels(tick_labels)
-axs[4].set_xlabel("Days")
+    # Plot CTU Magnetometer data
+    axs[2].plot(NSmag, marker='.', color='orange')
+    axs[2].set_title('MAG NS Component')
+    axs[2].set_ylabel('NS nT')
+
+    axs[3].plot(EWmag, marker='.', color='blue')
+    axs[3].set_title('MAG EW Component')
+    axs[3].set_ylabel('EW nT')
+
+    axs[4].plot(Zmag, marker='.', color='green')
+    axs[4].set_title('MAG Z Component')
+    axs[4].set_ylabel('Z nT')
+    axs[4].set_xlabel('Time (s)')
+
+    # Change x-axis labels to days
+    num_ticks = 7
+    tick_positions = np.linspace(-1, sample_count - 1, num_ticks)
+    tick_labels = [(pos // samples_per_day) + 1 for pos in tick_positions]
+    axs[4].set_xticks(tick_positions)
+    axs[4].set_xticklabels(tick_labels)
+    axs[4].set_xlabel("Days")
+
+generateDataPlots(NSsq, Zsq, NSmag, EWmag, Zmag, sample_count, samples_per_day)
 
 plt.tight_layout()
 plt.show()
