@@ -35,12 +35,7 @@ def process_data(data):
 
 data_array_mag = process_data(data_mag)
 data_array_sq = process_data(data_squid)
-# print(f"This is the mag head {data_array_mag.head()}")
-# print(f"This is the squid head {data_array_sq.head()}")
 
-# Check for missing values 
-print(f"Number of missing values in mag: {data_array_mag.isnull().sum()}")
-print(f"Number of missing values in squid: {data_array_sq.isnull().sum()}")
 
 # Squid data
 def parse_squid_data(data_array_sq):
@@ -126,7 +121,7 @@ def generateDataPlots(NSsq, Zsq, NSmag, EWmag, Zmag, sample_count, samples_per_d
     axs[4].set_xticklabels(tick_labels)
     axs[4].set_xlabel("Days")
 
-generateDataPlots(NSsq, Zsq, NSmag, EWmag, Zmag, sample_count, samples_per_day)
+# generateDataPlots(NSsq, Zsq, NSmag, EWmag, Zmag, sample_count, samples_per_day)
 
 plt.tight_layout()
-plt.show()
+# plt.show()
