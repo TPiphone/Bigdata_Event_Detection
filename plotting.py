@@ -73,6 +73,7 @@ days = [(i // samples_per_day) + 1 for i in range(sample_count)]
 
 # print the number of samples and the number of days
 print(f"Number of samples: {sample_count}")
+print(f"Number of samples per day: {samples_per_day}")
 print(f"Number of days: {days[-1]}")
 
 def generateDataPlots(NSsq, Zsq, NSmag, EWmag, Zmag, sample_count, samples_per_day):
