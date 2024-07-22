@@ -1,59 +1,15 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from definitions import read_txt_file, get_data, process_data, parse_squid_data, parse_magnetic_data
 
-def read_txt_file(file_path):
-    with open(file_path, 'r') as file:
-        data = file.read()
-    return data
-
-
-def get_data(file_type, read_txt_file, num_files=7):
-    """
-    Retrieves data from multiple files and concatenates them into a single string.
-
-    Parameters:
-    - file_type (str): The type of file to read (e.g., 'txt', 'csv', etc.).
-    - read_txt_file (function): A function that reads a text file and returns its contents.
-
-    Returns:
-    - data (str): The concatenated data from all the files.
-
-    """
-    data = ''
-    for int in range(1, num_files + 1):
-        file_path = f'/Users/tristan/Library/CloudStorage/OneDrive-StellenboschUniversity/Academics/Final_year/Semester 2/Skripsie/Data/SANSA/2024-06-0{int}.{file_type}'
-        data += read_txt_file(file_path)
-    return data
 data_mag = get_data('ctumag', read_txt_file)
 data_squid = get_data('squid', read_txt_file)
-
-def process_data(data):
-    data_lines = data.strip().split('\n')
-    data_array = pd.DataFrame([list(map(float, line.split())) for line in data_lines])
-    return data_array
 
 data_array_mag = process_data(data_mag)
 data_array_sq = process_data(data_squid)
 
-
-# Squid data
-def parse_squid_data(data_array_sq):
-    time = data_array_sq[0]
-    NSsq = data_array_sq[1]
-    Zsq = data_array_sq[2]
-    return time, NSsq, Zsq
-
 time, NSsq, Zsq = parse_squid_data(data_array_sq)
-
-# CTU Magnetometer data
-def parse_magnetic_data(data_array_mag):
-    timemag = data_array_mag[0]
-    NSmag = data_array_mag[1]
-    EWmag = data_array_mag[2]
-    Zmag = data_array_mag[3]
-    return timemag, NSmag, EWmag, Zmag
-
 timemag, NSmag, EWmag, Zmag = parse_magnetic_data(data_array_mag)
 # print first 5 values of time, NSsq, Zsq
 # print(f"First 5 values of array time: {timemag.head()}")
@@ -121,7 +77,7 @@ def generateDataPlots(NSsq, Zsq, NSmag, EWmag, Zmag, sample_count, samples_per_d
     axs[4].set_xticklabels(tick_labels)
     axs[4].set_xlabel("Days")
 
-# generateDataPlots(NSsq, Zsq, NSmag, EWmag, Zmag, sample_count, samples_per_day)
+generateDataPlots(NSsq, Zsq, NSmag, EWmag, Zmag, sample_count, samples_per_day)
 
 plt.tight_layout()
-# plt.show()
+plt.show()
