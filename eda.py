@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from definitions import read_txt_file, get_data, process_data, parse_squid_data, parse_magnetic_data, fourier_denoise
-from scipy.fftpack import fft, ifft
+from scipy.fft import fft, ifft, fftfreq
 
 data_arr_mag = process_data(get_data('ctumag', read_txt_file))
 data_arr_squid = process_data(get_data('squid', read_txt_file))
@@ -38,16 +38,75 @@ print(f"Data frame head: \n {df}")
 
 # Calculate the difference between consecutive data points for the last 4 columns
 diff_df = df.iloc[:, -5:].diff()
-print("This is the diff data frame \n", diff_df)
+# print("This is the diff data frame \n", diff_df)
 
 # Define a threshold for what constitutes a large change
 threshold = df.iloc[:, -5:].std() * 0.5
-print(threshold)
+# print(threshold)
 
 # Identify large jumps or drops
 discontinuities = diff_df[(diff_df > threshold) | (diff_df < -threshold)]
 # print("Discontinuities:\n", discontinuities[discontinuities.notnull()])
 
 # if record contains a non Nan value then print the record
-print("Records with discontinuities:")
-print((df[discontinuities.notnull().any(axis=1)]).count())
+# print("Records with discontinuities:")
+# print((df[discontinuities.notnull().any(axis=1)]).count())
+
+
+
+# Fourier Transform myself
+ns_squid = np.array(df['NS_SQUID'])
+print(ns_squid)
+print(ns_squid.shape)
+
+# # Find the numbers that occur more than once
+# unique_elements, counts = np.unique(ns_squid, return_counts=True)
+# duplicates = unique_elements[counts > 1]
+# print("Numbers that occur more than once:", len(duplicates))
+N = len(ns_squid)
+SAMPLE_RATE = 5
+yf = fft(ns_squid)
+xf = fftfreq(N, 1 / SAMPLE_RATE)
+plt.plot(xf, np.abs(yf))
+plt.show()
+
+
+
+
+# # Apply Fourier Transform
+# # Set the sampling frequency
+# sampling_frequency = 5  # 5 measurements per second
+
+# # Calculate the Fourier Transform for each component
+# def calculate_fourier_transform(data, sampling_frequency):
+#     L = len(data)
+#     fourier_transform = np.fft.fft(data)
+#     frequencies = np.fft.fftfreq(L, 1 / sampling_frequency)
+#     # print the first 5 frequencies
+#     # print(frequencies[:5])
+#     # print(fourier_transform[:5],"\n")
+#     return frequencies, fourier_transform
+
+# # Apply Fourier Transform to each component
+
+# fourier_results = {}
+
+# for component in components[1:]:
+#     frequencies, fourier_transform = calculate_fourier_transform(df[component], sampling_frequency)
+#     fourier_results[component] = (frequencies, fourier_transform)
+
+
+# # Plot the results
+# plt.figure(figsize=(14, 10))
+
+# for i, component in enumerate(components[1:], 1):
+#     frequencies, fourier_transform = fourier_results[component]
+#     plt.subplot(3, 2, i)
+#     plt.plot(frequencies[:len(frequencies)//2], 2.0/len(fourier_transform) * np.abs(fourier_transform[:len(fourier_transform)//2]))
+#     plt.title(f'Fourier Transform of {component}')
+#     plt.xlabel('Frequency [Hz]')
+#     plt.ylabel('Amplitude')
+#     plt.xlim(0, max(frequencies[:len(frequencies)//2]))  # Set x-axis limit to fit the data
+
+# plt.tight_layout()
+# # plt.show()
