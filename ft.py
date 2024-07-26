@@ -28,9 +28,15 @@ normalized_tone = np.int16((mixed_tone / mixed_tone.max()) * 32767)
 N = SAMPLE_RATE * DURATION
 
 print(normalized_tone)
+print(normalized_tone.shape)
 yf = fft(normalized_tone)
 xf = fftfreq(N, 1 / SAMPLE_RATE)
 
 plt.plot(xf, np.abs(yf))
-#plt.show()
+# plt.show()
+
+# # Find the numbers that occur more than once
+unique_elements, counts = np.unique(normalized_tone, return_counts=True)
+duplicates = unique_elements[counts > 1]
+print("Numbers that occur more than once:", len(duplicates))
 

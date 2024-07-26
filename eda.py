@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from definitions import read_txt_file, get_data, process_data, parse_squid_data, parse_magnetic_data, fourier_denoise
 from scipy.fft import fft, ifft, fftfreq
+from scipy import signal
 
 data_arr_mag = process_data(get_data('ctumag', read_txt_file))
 data_arr_squid = process_data(get_data('squid', read_txt_file))
@@ -53,23 +54,37 @@ discontinuities = diff_df[(diff_df > threshold) | (diff_df < -threshold)]
 # print((df[discontinuities.notnull().any(axis=1)]).count())
 
 
+# Detrend the data
+detrended_df = df.copy()
+for column in detrended_df.columns:
+    if column != 'Time':
+        detrended_df[column] = signal.detrend(detrended_df[column])
 
-# Fourier Transform myself
-ns_squid = np.array(df['NS_SQUID'])
+# Normalize the data
+normalized_df = (detrended_df - detrended_df.mean()) / detrended_df.std()
+
+
+# Fourier Transform
+ns_squid = np.array(detrended_df['NS_SQUID'])
 print(ns_squid)
 print(ns_squid.shape)
-
-# # Find the numbers that occur more than once
-# unique_elements, counts = np.unique(ns_squid, return_counts=True)
-# duplicates = unique_elements[counts > 1]
-# print("Numbers that occur more than once:", len(duplicates))
 N = len(ns_squid)
 SAMPLE_RATE = 5
 yf = fft(ns_squid)
 xf = fftfreq(N, 1 / SAMPLE_RATE)
 plt.plot(xf, np.abs(yf))
+plt.title('Fourier Transform of NS_SQUID')
+plt.xlabel('Frequency (Hz)')
+plt.ylabel('Amplitude')
+# plt.xlim(0, SAMPLE_RATE / 2)  # Set x-axis limit to positive frequencies
+# plt.grid(True)
 plt.show()
 
+
+# Find the numbers that occur more than once
+unique_elements, counts = np.unique(ns_squid, return_counts=True)
+duplicates = unique_elements[counts > 1]
+print("Numbers that occur more than once:", len(duplicates))
 
 
 
