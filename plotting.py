@@ -36,32 +36,10 @@ end_date = '2024-06-15'
 data_mag = get_data('ctumag', read_txt_file, start_date, end_date)
 data_squid = get_data('squid', read_txt_file, start_date, end_date)
 
-def process_data(data):
-    data_lines = data.strip().split('\n')
-    data_array = pd.DataFrame([list(map(float, line.split())) for line in data_lines])
-    return data_array
-
 data_array_mag = process_data(data_mag)
 data_array_sq = process_data(data_squid)
 
-
-# Squid data
-def parse_squid_data(data_array_sq):
-    time = data_array_sq[0]
-    NSsq = data_array_sq[1]
-    Zsq = data_array_sq[2]
-    return time, NSsq, Zsq
-
 time, NSsq, Zsq = parse_squid_data(data_array_sq)
-
-# CTU Magnetometer data
-def parse_magnetic_data(data_array_mag):
-    timemag = data_array_mag[0]
-    NSmag = data_array_mag[1]
-    EWmag = data_array_mag[2]
-    Zmag = data_array_mag[3]
-    return timemag, NSmag, EWmag, Zmag
-
 timemag, NSmag, EWmag, Zmag = parse_magnetic_data(data_array_mag)
 # print first 5 values of time, NSsq, Zsq
 # print(f"First 5 values of array time: {timemag.head()}")
