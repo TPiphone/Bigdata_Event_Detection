@@ -61,67 +61,69 @@ for column in detrended_df.columns:
         detrended_df[column] = signal.detrend(detrended_df[column])
 
 # Normalize the data
-normalized_df = (detrended_df - detrended_df.mean()) / detrended_df.std()
+# normalized_df = (detrended_df - detrended_df.mean()) / detrended_df.std()
 
 
-# Fourier Transform
-ns_squid = np.array(detrended_df['NS_SQUID'])
-print(ns_squid)
-print(ns_squid.shape)
-N = len(ns_squid)
-SAMPLE_RATE = 5
-yf = fft(ns_squid)
-xf = fftfreq(N, 1 / SAMPLE_RATE)
-plt.plot(xf, np.abs(yf))
-plt.title('Fourier Transform of NS_SQUID')
-plt.xlabel('Frequency (Hz)')
-plt.ylabel('Amplitude')
+# # Fourier Transform
+# ns_squid = np.array(df['NS_SQUID'])
+# print(ns_squid)
+# print(ns_squid.shape)
+# N = len(ns_squid)
+# SAMPLE_RATE = 5
+# yf = fft(ns_squid)
+# xf = fftfreq(N, 1 / SAMPLE_RATE)
+# plt.plot(xf, np.abs(yf))
+# plt.title('Fourier Transform of NS_SQUID')
+# plt.xlabel('Frequency (Hz)')
+# plt.ylabel('Amplitude')
+# plt.yscale('log')  # Set y-axis scale to log
 # plt.xlim(0, SAMPLE_RATE / 2)  # Set x-axis limit to positive frequencies
 # plt.grid(True)
-plt.show()
+# plt.show()
 
 
 # Find the numbers that occur more than once
-unique_elements, counts = np.unique(ns_squid, return_counts=True)
-duplicates = unique_elements[counts > 1]
-print("Numbers that occur more than once:", len(duplicates))
+# unique_elements, counts = np.unique(ns_squid, return_counts=True)
+# duplicates = unique_elements[counts > 1]
+# print("Numbers that occur more than once:", len(duplicates))
 
 
 
-# # Apply Fourier Transform
-# # Set the sampling frequency
-# sampling_frequency = 5  # 5 measurements per second
+# Apply Fourier Transform
+# Set the sampling frequency
+sampling_frequency = 5  # 5 measurements per second
 
-# # Calculate the Fourier Transform for each component
-# def calculate_fourier_transform(data, sampling_frequency):
-#     L = len(data)
-#     fourier_transform = np.fft.fft(data)
-#     frequencies = np.fft.fftfreq(L, 1 / sampling_frequency)
-#     # print the first 5 frequencies
-#     # print(frequencies[:5])
-#     # print(fourier_transform[:5],"\n")
-#     return frequencies, fourier_transform
+# Calculate the Fourier Transform for each component
+def calculate_fourier_transform(data, sampling_frequency):
+    L = len(data)
+    fourier_transform = np.fft.fft(data)
+    frequencies = np.fft.fftfreq(L, 1 / sampling_frequency)
+    # print the first 5 frequencies
+    # print(frequencies[:5])
+    # print(fourier_transform[:5],"\n")
+    return frequencies, fourier_transform
 
-# # Apply Fourier Transform to each component
+# Apply Fourier Transform to each component
 
-# fourier_results = {}
+fourier_results = {}
 
-# for component in components[1:]:
-#     frequencies, fourier_transform = calculate_fourier_transform(df[component], sampling_frequency)
-#     fourier_results[component] = (frequencies, fourier_transform)
+for component in components[1:]:
+    frequencies, fourier_transform = calculate_fourier_transform(df[component], sampling_frequency)
+    fourier_results[component] = (frequencies, fourier_transform)
 
 
-# # Plot the results
-# plt.figure(figsize=(14, 10))
+# Plot the results
+plt.figure(figsize=(14, 10))
 
-# for i, component in enumerate(components[1:], 1):
-#     frequencies, fourier_transform = fourier_results[component]
-#     plt.subplot(3, 2, i)
-#     plt.plot(frequencies[:len(frequencies)//2], 2.0/len(fourier_transform) * np.abs(fourier_transform[:len(fourier_transform)//2]))
-#     plt.title(f'Fourier Transform of {component}')
-#     plt.xlabel('Frequency [Hz]')
-#     plt.ylabel('Amplitude')
-#     plt.xlim(0, max(frequencies[:len(frequencies)//2]))  # Set x-axis limit to fit the data
+for i, component in enumerate(components[1:], 1):
+    frequencies, fourier_transform = fourier_results[component]
+    plt.subplot(3, 2, i)
+    plt.plot(frequencies[:len(frequencies)//2], 2.0/len(fourier_transform) * np.abs(fourier_transform[:len(fourier_transform)//2]))
+    plt.title(f'Fourier Transform of {component}')
+    plt.xlabel('Frequency [Hz]')
+    plt.ylabel('Amplitude')
+    plt.yscale('log')  
+    plt.xlim(0, max(frequencies[:len(frequencies)//2]))  # Set x-axis limit to fit the data
 
-# plt.tight_layout()
-# # plt.show()
+plt.tight_layout()
+plt.show()
