@@ -105,7 +105,7 @@ Here are some key features of this project:
 Feel free to explore and adapt this project to suit your specific needs. Happy coding!
 
 ### Authors and Acknowledgments
-Author - T.R. Perfett
-Supervisor - C.J. Fourie
+- Author - T.R. Perfett
+- Supervisor - C.J. Fourie
 
 
