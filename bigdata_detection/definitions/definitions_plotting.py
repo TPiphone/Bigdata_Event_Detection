@@ -8,7 +8,6 @@ def read_txt_file(file_path):
         data = file.read()
     return data
 
-
 def get_data(file_type, read_txt_file, start_date, end_date):
     """
     Retrieves data from multiple files and concatenates them into a single string.
@@ -31,33 +30,28 @@ def get_data(file_type, read_txt_file, start_date, end_date):
         # print(file_path)
         data += read_txt_file(file_path)
     return data
-start_date = '2024-06-09'
-end_date = '2024-06-15'
-data_mag = get_data('ctumag', read_txt_file, start_date, end_date)
-data_squid = get_data('squid', read_txt_file, start_date, end_date)
 
-data_array_mag = process_data(data_mag)
-data_array_sq = process_data(data_squid)
+def process_data(data):
+    data_lines = data.strip().split('\n')
+    data_array = pd.DataFrame([list(map(float, line.split())) for line in data_lines])
+    return data_array
 
-time, NSsq, Zsq = parse_squid_data(data_array_sq)
-timemag, NSmag, EWmag, Zmag = parse_magnetic_data(data_array_mag)
-# print first 5 values of time, NSsq, Zsq
-# print(f"First 5 values of array time: {timemag.head()}")
-# print(f"First 5 values of array NSmag: {NSmag.head()}")
-# print(f"First 5 values of array EWmag: {EWmag.head()}")
-# print(f"First 5 values of array Zmag: {Zmag.head()}")
+# Squid data
+def parse_squid_data(data_array_sq):
+    time = data_array_sq[0]
+    NSsq = data_array_sq[1]
+    Zsq = data_array_sq[2]
+    return time, NSsq, Zsq
 
-# Calculate the day index for each sample
-sample_count = len(time)
-samples_per_day = 431999
-days = [(i // samples_per_day) + 1 for i in range(sample_count)]
+# CTU Magnetometer data
+def parse_magnetic_data(data_array_mag):
+    timemag = data_array_mag[0]
+    NSmag = data_array_mag[1]
+    EWmag = data_array_mag[2]
+    Zmag = data_array_mag[3]
+    return timemag, NSmag, EWmag, Zmag
 
-# print the number of samples and the number of days
-print(f"Number of samples: {sample_count}")
-print(f"Number of samples per day: {samples_per_day}")
-print(f"Number of days: {days[-1]}")
-
-def generateDataPlots(NSsq, Zsq, NSmag, EWmag, Zmag, sample_count, samples_per_day, start_date):
+def generateDataPlots(NSsq, Zsq, NSmag, EWmag, Zmag, sample_count, samples_per_day, start_date, end_date):
     """
     Generates data plots for Squid and CTU Magnetometer data.
 
@@ -75,27 +69,27 @@ def generateDataPlots(NSsq, Zsq, NSmag, EWmag, Zmag, sample_count, samples_per_d
     None
     """
 
-    fig, axs = plt.subplots(5, 1, figsize=(12, 8), sharex=True, num='Data Plots')
+    fig, axs = plt.subplots(5, 1, figsize=(16, 10), sharex=True, num='Data Plots')
 
     # Plot Squid data
-    axs[0].plot(NSsq[::10], marker='.', color='orange')
+    axs[0].plot(NSsq[::5], marker='.', color='red')
     axs[0].set_title('Squid NS Component')
     axs[0].set_ylabel('NS nT (relative)')
 
-    axs[1].plot(Zsq[::10], marker='.', color='green')
+    axs[1].plot(Zsq[::5], marker='.', color='blue')
     axs[1].set_title('Squid F Component')
     axs[1].set_ylabel('F nT (relative)')
 
     # Plot CTU Magnetometer data
-    axs[2].plot(NSmag[::10], marker='.', color='orange')
+    axs[2].plot(NSmag[::5], marker='.', color='orange')
     axs[2].set_title('MAG NS Component')
     axs[2].set_ylabel('NS nT')
 
-    axs[3].plot(EWmag[::10], marker='.', color='blue')
+    axs[3].plot(EWmag[::5], marker='.', color='purple')
     axs[3].set_title('MAG EW Component')
     axs[3].set_ylabel('EW nT')
 
-    axs[4].plot(Zmag[::10], marker='.', color='green')
+    axs[4].plot(Zmag[::5], marker='.', color='green')
     axs[4].set_title('MAG Z Component')
     axs[4].set_ylabel('Z nT')
     axs[4].set_xlabel('Time (s)')
@@ -104,12 +98,7 @@ def generateDataPlots(NSsq, Zsq, NSmag, EWmag, Zmag, sample_count, samples_per_d
     num_ticks = (datetime.strptime(end_date, '%Y-%m-%d') - datetime.strptime(start_date, '%Y-%m-%d')).days + 1
     tick_positions = np.linspace(-1, sample_count - 1, num_ticks)
     tick_labels = [(pos // samples_per_day) + 1 for pos in tick_positions]
-    tick_dates = [(datetime.strptime(start_date, '%Y-%m-%d') + timedelta(days=label-1)).strftime('%Y-%m-%d') for label in tick_labels]
+    tick_dates = [(datetime.strptime(start_date, '%Y-%m-%d') + timedelta(days=label)).strftime('%Y-%m-%d') for label in tick_labels]
     axs[4].set_xticks(tick_positions)
     axs[4].set_xticklabels(tick_dates)
     axs[4].set_xlabel("Date")
-
-generateDataPlots(NSsq, Zsq, NSmag, EWmag, Zmag, sample_count, samples_per_day, start_date)
-
-plt.tight_layout()
-plt.show()

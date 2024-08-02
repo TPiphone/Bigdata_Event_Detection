@@ -1,0 +1,47 @@
+Data Describe:
+           NS_SQUID       F_SQUID   NS_Fluxgate   EW_Fluxgate    Z_Fluxgate
+count  2.159987e+06  2.159987e+06  2.159987e+06  2.159987e+06  2.159987e+06
+mean  -1.225882e+02 -1.301839e+01  1.094909e+04 -7.715830e+01 -2.266538e+04
+std    2.226740e+01  4.754879e+01  1.594729e+01  2.027951e+01  1.360219e+01
+min   -1.756936e+02 -1.196762e+02  1.091196e+04 -1.427465e+02 -2.269395e+04
+25%   -1.357330e+02 -5.257990e+01  1.093977e+04 -8.197410e+01 -2.267244e+04
+50%   -1.175473e+02  6.942000e+00  1.095263e+04 -7.257430e+01 -2.266897e+04
+75%   -1.072291e+02  1.355830e+01  1.096048e+04 -6.616620e+01 -2.266265e+04
+max   -6.597950e+01  6.114150e+01  1.100228e+04 -3.809230e+01 -2.255692e+04
+
+This is the head of the df: 
+      NS_SQUID  F_SQUID  NS_Fluxgate  EW_Fluxgate  Z_Fluxgate
+Time                                                         
+0.09  -98.7272 -84.6562   10964.9980     -71.4005 -22662.5927
+0.29  -98.7269 -84.7641   10965.0129     -71.3179 -22662.5824
+0.49  -98.7254 -84.7845   10965.0129     -71.3179 -22662.5824
+0.69  -98.7248 -84.7704   10965.0129     -71.3179 -22662.5824
+0.89  -98.7239 -84.7536   10965.0178     -71.3441 -22662.6716
+
+Shape of the df: (2159987, 5)
+
+Number of missing values in the df:
+ NS_SQUID       0
+F_SQUID        0
+NS_Fluxgate    0
+EW_Fluxgate    0
+Z_Fluxgate     0
+dtype: int64
+
+The discontinuity threshold is: 
+NS_SQUID       32.484999
+F_SQUID        34.081141
+NS_Fluxgate    25.516378
+EW_Fluxgate    22.865386
+Z_Fluxgate     26.537866
+dtype: float64
+
+Number of discontinuities in the df:
+ 3
+
+Records with discontinuities:
+          NS_SQUID  F_SQUID  NS_Fluxgate  EW_Fluxgate  Z_Fluxgate
+Time                                                             
+1254.98  -112.4256 -87.3099   11002.2790    -108.4851 -22556.9701
+1255.98  -112.4543 -87.3135   10956.1619     -72.8628 -22668.1546
+85226.57  -77.6098   4.3058   10979.3491    -135.7802 -22675.2633

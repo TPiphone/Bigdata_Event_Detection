@@ -1,0 +1,5 @@
+{
+    "python.analysis.extraPaths": [
+        "./bigdata_detection/definitions"
+    ]
+}

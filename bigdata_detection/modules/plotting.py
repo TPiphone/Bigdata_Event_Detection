@@ -1,13 +1,19 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import sys
 sys.path.append('../definitions')
 import definitions_plotting as defplot
+from datetime import datetime
 
-start_date = '2024-06-09'
-end_date = '2024-06-15'
+start_date = '2024-03-23'
+end_date = '2024-03-30'
+
+start_date_obj = datetime.strptime(start_date, '%Y-%m-%d')
+end_date_obj = datetime.strptime(end_date, '%Y-%m-%d')
+num_days = (end_date_obj - start_date_obj).days
+
 data_mag = defplot.get_data('ctumag', defplot.read_txt_file, start_date, end_date)
 data_squid = defplot.get_data('squid', defplot.read_txt_file, start_date, end_date)
 
@@ -24,13 +30,10 @@ timemag, NSmag, EWmag, Zmag = defplot.parse_magnetic_data(data_array_mag)
 
 # Calculate the day index for each sample
 sample_count = len(time)
-samples_per_day = 431999
-days = [(i // samples_per_day) + 1 for i in range(sample_count)]
-
-# print the number of samples and the number of days
-print(f"Number of samples: {sample_count}")
-print(f"Number of samples per day: {samples_per_day}")
-print(f"Number of days: {days[-1]}")
+samples_per_day = int(sample_count / num_days)
+print(f"Number of days between {start_date} and {end_date}: {num_days}")
+print(f"Number of samples in {num_days} days is : {sample_count}")
+print(f"Therefore number of samples per day: {samples_per_day}")
 
 defplot.generateDataPlots(NSsq, Zsq, NSmag, EWmag, Zmag, sample_count, samples_per_day, start_date,end_date)
 plt.tight_layout()

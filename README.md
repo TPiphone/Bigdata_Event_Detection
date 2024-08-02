@@ -8,7 +8,7 @@ To install and run this project, follow these steps:
 
 1. Clone the repository to your local machine:
     ```
-    git clone https://github.com/your-username/your-repository.git
+    git clone https://github.com/TPiphone/Bigdata_Event_Detection.git
     ```
 
 2. Navigate to the project directory:
@@ -43,30 +43,6 @@ You can install these libraries by running the following command:
 pip install numpy pandas matplotlib scikit-learn
 ```
 
-Once you have installed the required libraries, you can proceed with the following steps:
-
-1. Clone the repository to your local machine:
-    ```
-    git clone https://github.com/your-username/your-repository.git
-    ```
-
-2. Navigate to the project directory:
-    ```
-    cd your-repository
-    ```
-
-3. Install the required dependencies:
-    ```
-    pip install -r requirements.txt
-    ```
-
-4. Run the project:
-    ```
-    python main.py
-    ```
-
-5. You're ready to go! The project is now installed and running on your machine.
-
 ### Example Usage
 
 
@@ -90,8 +66,6 @@ plt.show()
 
 This will generate a plot showing the timestamps and magnitudes of the detected severe weather events.
 
-Feel free to explore the project and adapt it to your specific needs. Happy coding!
-
 ### Key Features
 
 Here are some key features of this project:
@@ -102,7 +76,6 @@ Here are some key features of this project:
 - Analysis of detected events using `events.csv`
 - Plotting of detected events using matplotlib
 
-Feel free to explore and adapt this project to suit your specific needs. Happy coding!
 
 ### Authors and Acknowledgments
 - Author - T.R. Perfett
