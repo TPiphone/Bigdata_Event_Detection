@@ -1,8 +1,8 @@
-import os
+# import os
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scipy.fftpack import fft, ifft
+from scipy.fftpack import ifft
 
 def read_txt_file(file_path):
     with open(file_path, 'r') as file:

@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import sys
 from matplotlib import pyplot as plt
 import numpy as np
-sys.path.append('../definitions')
+sys.path.append('../../definitions')
 import definitions_EDA as eda
 import definitions_plotting as def_plot
 from scipy.fft import fft, ifft, fftfreq
