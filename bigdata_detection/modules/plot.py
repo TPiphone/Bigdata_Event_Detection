@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import sys
-sys.path.append('../../definitions')
+sys.path.append('../definitions')
 import definitions_plotting as defplot
 from datetime import datetime
 
