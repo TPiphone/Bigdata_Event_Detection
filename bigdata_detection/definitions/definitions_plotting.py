@@ -20,16 +20,22 @@ def get_data(file_type, read_txt_file, start_date, end_date):
 
     Returns:
     - data (str): The concatenated data from all the files.
-
     """
     data = ''
-    start_day = int(start_date.split('-')[2])
-    end_day = int(end_date.split('-')[2])
-    for day in range(start_day, end_day + 1):
-        file_path = f'/Users/tristan/Library/CloudStorage/OneDrive-StellenboschUniversity/Academics/Final_year/Semester 2/Skripsie/Data/SANSA/{start_date[:7]}-{day:02d}.{file_type}'
-        # print(file_path)
-        data += read_txt_file(file_path)
+    date_range = pd.date_range(start=start_date, end=end_date, freq='D')
+
+    for single_date in date_range:
+        file_path = f'/Users/tristan/Library/CloudStorage/OneDrive-StellenboschUniversity/Academics/Final_year/Semester 2/Skripsie/Data/SANSA/{single_date.strftime("%Y-%m-%d")}.{file_type}'
+        print(file_path)
+        try:
+            data += read_txt_file(file_path)
+        except FileNotFoundError:
+            print(f"File not found: {file_path}")
+            continue
+    
     return data
+
+
 
 def process_data(data):
     data_lines = data.strip().split('\n')

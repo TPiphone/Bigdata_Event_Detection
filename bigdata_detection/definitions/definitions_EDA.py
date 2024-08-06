@@ -27,7 +27,7 @@ def get_data(file_type, read_txt_file, start_date, end_date):
 
     for single_date in date_range:
         file_path = f'/Users/tristan/Library/CloudStorage/OneDrive-StellenboschUniversity/Academics/Final_year/Semester 2/Skripsie/Data/SANSA/{single_date.strftime("%Y-%m-%d")}.{file_type}'
-        print(file_path)
+        # print(file_path)
         try:
             data += read_txt_file(file_path)
         except FileNotFoundError:
@@ -108,7 +108,8 @@ def write_data_summary(df, threshold, discontinuities):
     # Close the file
         file.close()
 
-def discontinuity_check(df,df_cntrl):
+def 
+discontinuity_check(df,df_cntrl):
     # Calculate the difference between consecutive data points to identify large jumps or drops
     diff_df = df.iloc[:].diff()
 
