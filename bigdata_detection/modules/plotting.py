@@ -7,8 +7,8 @@ sys.path.append('../definitions')
 import definitions_plotting as defplot
 from datetime import datetime
 
-start_date = '2024-03-23'
-end_date = '2024-03-30'
+start_date = '2024-03-29'
+end_date = '2024-04-03'
 
 start_date_obj = datetime.strptime(start_date, '%Y-%m-%d')
 end_date_obj = datetime.strptime(end_date, '%Y-%m-%d')
