@@ -1,4 +1,5 @@
-# import os
+from datetime import datetime, timedelta
+import os
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -26,7 +27,8 @@ def get_data(file_type, read_txt_file, start_date, end_date):
     date_range = pd.date_range(start=start_date, end=end_date, freq='D')
 
     for single_date in date_range:
-        file_path = f'/Users/tristan/Library/CloudStorage/OneDrive-StellenboschUniversity/Academics/Final_year/Semester 2/Skripsie/Data/SANSA/{single_date.strftime("%Y-%m-%d")}.{file_type}'
+        # file_path = f'/Users/tristan/Library/CloudStorage/OneDrive-StellenboschUniversity/Academics/Final_year/Semester 2/Skripsie/Data/SANSA/{single_date.strftime("%Y-%m-%d")}.{file_type}'
+        file_path = f'/Users/tristan/Library/CloudStorage/OneDrive-StellenboschUniversity/Academics/Final_year/Semester 2/Skripsie/Data/DUMMY/{single_date.strftime("%Y-%m-%d")}.{file_type}'
         # print(file_path)
         try:
             data += read_txt_file(file_path)
@@ -41,11 +43,12 @@ def process_data(data):
     data_array = pd.DataFrame([list(map(float, line.split())) for line in data_lines])
     return data_array
 
-def create_dataframe(data_arr_mag, data_arr_squid):
+def create_dataframe(data_arr_mag, data_arr_squid, start_date):
     components = ['Time', 'NS_SQUID', 'F_SQUID', 'NS_Fluxgate', 'EW_Fluxgate', 'Z_Fluxgate']
     mag_data_without_time = data_arr_mag.drop(columns=[0])  
     df = pd.concat([data_arr_squid, mag_data_without_time], axis=1)
     df.columns = components
+    df['Time'] = pd.to_datetime(start_date) + pd.to_timedelta(df['Time'], unit='s')
     df.set_index('Time', inplace=True)  # Set the 'Time' column as the index
     return df
 
@@ -59,7 +62,7 @@ def calculate_fourier_transform(data, sampling_frequency):
 
 # Apply Fourier Transform
 def calculate_fourier_transforms(df):
-    sampling_frequency = 5  # 5 measurements per second
+    sampling_frequency = 1  # 5 measurements per second
     components = ['Time', 'NS_SQUID', 'F_SQUID', 'NS_Fluxgate', 'EW_Fluxgate', 'Z_Fluxgate']
 
     fourier_results = {}
@@ -67,6 +70,14 @@ def calculate_fourier_transforms(df):
         frequencies, fourier_transform = calculate_fourier_transform(df[component], sampling_frequency)
         fourier_results[component] = (frequencies, fourier_transform)
     return components,fourier_results
+
+# Resample the data to a lower frequency
+def resample_data(df, resample_frequency):
+    df_resampled = df.resample(resample_frequency).mean()
+    # print(f"Resampled data frame shape: \n {df_resampled.shape}")
+    # print(f"Resampled data frame head: \n {df_resampled.head()}")
+    # df_resampled = df_resampled.ffill().bfill()
+    return df_resampled
 
 def plot_fourier_transform(fourier_results, components):
     # Plot the results
@@ -108,13 +119,24 @@ def write_data_summary(df, threshold, discontinuities):
     # Close the file
         file.close()
 
-def 
-discontinuity_check(df,df_cntrl):
+# def check_missing_time(df):
+#     complete_time_index = pd.date_range(start=df.index.min(), end=df.index.max(), freq='200ms')  # 200 ms for 5 Hz
+#     # Reindex the DataFrame to the complete time index
+#     df_reindexed = df.reindex(complete_time_index)
+#     # Identify missing time steps
+#     missing_time_steps = df_reindexed[df_reindexed.isna().any(axis=1)]
+#     proportion_missing = len(missing_time_steps) / len(complete_time_index)
+#     print("Proportion of missing time steps:", proportion_missing)
+
+
+
+def discontinuity_check(df,df_cntrl):
     # Calculate the difference between consecutive data points to identify large jumps or drops
-    diff_df = df.iloc[:].diff()
+    diff_df = df.iloc[:].diff().dropna()
+    print(f"Diff_df: \n {diff_df}")
 
     # Define a threshold for what constitutes a large change
-    threshold = df_cntrl.std() 
+    threshold =  df.mean()+ (df.std()*1.5)
     # print(f"Threshold for each column: \n {threshold}")
 
     # Find the records that contain discontinuities
@@ -122,7 +144,8 @@ discontinuity_check(df,df_cntrl):
     # print(f"Discontinuities: \n {discontinuities}")
     # Get the records with discontinuities
     records_with_discontinuities = df[discontinuities.any(axis=1)]
-
+    # print the number of discontinuities
+    print(f"Number of discontinuities: {records_with_discontinuities.shape[0]}")
     # Remove the records with discontinuities
     df_cleaned = df[~discontinuities.any(axis=1)]
 
@@ -135,6 +158,12 @@ discontinuity_check(df,df_cntrl):
 #         if column != 'Time':
 #             detrended_df[column] = signal.detrend(detrended_df[column])
 
+def smooth_data(df):
+    df_interpolated = df.ffill().bfill()
+    window_size = 5
+    # df_smoothed = df_interpolated.rolling(window=window_size, min_periods=1).mean()
+    return df_interpolated
+
 def plot_cleaned_data(df_cleaned):
     """
     Plots each column of the cleaned DataFrame with a different color.
@@ -142,15 +171,18 @@ def plot_cleaned_data(df_cleaned):
     Parameters:
     - df_cleaned (pd.DataFrame): The DataFrame to plot.
     """
-    num_columns = df_cleaned.shape[1]
+    
+    # df_smoothed = smooth_data(df_cleaned)
+    df_smoothed = df_cleaned
+    num_columns = df_smoothed.shape[1]
     colors = ['b', 'g', 'r', 'c', 'm', 'y']  # List of colors to use for each column
     fig, axes = plt.subplots(num_columns, 1, figsize=(10, num_columns * 3))
     
     if num_columns == 1:
         axes = [axes]
     
-    for i, column in enumerate(df_cleaned.columns):
-        data_array = df_cleaned[column].values  # Create a separate array without a time index
+    for i, column in enumerate(df_smoothed.columns):
+        data_array = df_smoothed[column].values  # Create a separate array without a time index
         axes[i].plot(data_array, color=colors[i % len(colors)])  # Use a different color for each column
         axes[i].set_title(f'{column} Data Array')
         axes[i].set_xlabel('Index')
@@ -159,3 +191,55 @@ def plot_cleaned_data(df_cleaned):
     
     plt.tight_layout()
     plt.show()
+
+def generateDataPlots(NSsq, Zsq, NSmag, EWmag, Zmag, sample_count, samples_per_day, start_date, end_date):
+    """
+    Generates data plots for Squid and CTU Magnetometer data.
+
+    Parameters:
+    NSsq (array-like): Array of NS Squid data.
+    Zsq (array-like): Array of Z Squid data.
+    NSmag (array-like): Array of NS Magnetometer data.
+    EWmag (array-like): Array of EW Magnetometer data.
+    Zmag (array-like): Array of Z Magnetometer data.
+    sample_count (int): Total number of samples.
+    samples_per_day (int): Number of samples per day.
+    start_date (str): The start date in the format 'YYYY-MM-DD'.
+
+    Returns:
+    None
+    """
+
+    fig, axs = plt.subplots(5, 1, figsize=(16, 10), sharex=True, num='Data Plots')
+
+    # Plot Squid data
+    axs[0].plot(NSsq, marker='.', color='red')
+    axs[0].set_title('Squid NS Component')
+    axs[0].set_ylabel('NS nT (relative)')
+
+    axs[1].plot(Zsq, marker='.', color='blue')
+    axs[1].set_title('Squid F Component')
+    axs[1].set_ylabel('F nT (relative)')
+
+    # Plot CTU Magnetometer data
+    axs[2].plot(NSmag, marker='.', color='orange')
+    axs[2].set_title('MAG NS Component')
+    axs[2].set_ylabel('NS nT')
+
+    axs[3].plot(EWmag, marker='.', color='purple')
+    axs[3].set_title('MAG EW Component')
+    axs[3].set_ylabel('EW nT')
+
+    axs[4].plot(Zmag, marker='.', color='green')
+    axs[4].set_title('MAG Z Component')
+    axs[4].set_ylabel('Z nT')
+    axs[4].set_xlabel('Time (s)')
+
+    # Change x-axis labels to dates
+    # num_ticks = (datetime.strptime(end_date, '%Y-%m-%d') - datetime.strptime(start_date, '%Y-%m-%d')).days + 1
+    # tick_positions = np.linspace(-1, sample_count - 1, num_ticks)
+    # tick_labels = [(pos // samples_per_day) + 1 for pos in tick_positions]
+    # tick_dates = [(datetime.strptime(start_date, '%Y-%m-%d') + timedelta(days=label)).strftime('%Y-%m-%d') for label in tick_labels]
+    # axs[4].set_xticks(tick_positions)
+    # axs[4].set_xticklabels(tick_dates)
+    # axs[4].set_xlabel("Date")
