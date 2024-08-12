@@ -52,6 +52,8 @@ def create_dataframe(data_arr_mag, data_arr_squid, start_date):
     df.columns = components
     df['Time'] = pd.to_datetime(start_date) + pd.to_timedelta(df['Time'], unit='s')
     df.set_index('Time', inplace=True)  # Set the 'Time' column as the index
+    # df.index.freq = '200L'  # Set the frequency of the time series data to 5 Hz (200 milliseconds)
+    df.index.freq = pd.infer_freq(df.index)
     return df
 
 # Calculate the Fourier Transform for each component
@@ -132,7 +134,10 @@ def write_data_summary(df, threshold, discontinuities):
 
 
 
-def discontinuity_check(df,df_cntrl):
+def discontinuity_check(df):
+    # threshold =  df.mean()+ (df.std()*1.5)
+    # times_gaps = df.index - df.index.shift(1)
+    # return times_gaps, threshold
     # Calculate the difference between consecutive data points to identify large jumps or drops
     diff_df = df.iloc[:].diff().dropna()
     print(f"Diff_df: \n {diff_df}")
