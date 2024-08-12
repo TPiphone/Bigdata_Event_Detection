@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.fftpack import ifft
+from statsmodels.tsa.stattools import adfuller
+
 
 def read_txt_file(file_path):
     with open(file_path, 'r') as file:
@@ -75,7 +77,7 @@ def calculate_fourier_transforms(df):
 def resample_data(df, resample_frequency):
     df_resampled = df.resample(resample_frequency).mean()
     # print(f"Resampled data frame shape: \n {df_resampled.shape}")
-    # print(f"Resampled data frame head: \n {df_resampled.head()}")
+    print(f"Resampled data frame head: \n {df_resampled.head()}")
     # df_resampled = df_resampled.ffill().bfill()
     return df_resampled
 
@@ -233,7 +235,7 @@ def generateDataPlots(NSsq, Zsq, NSmag, EWmag, Zmag, sample_count, samples_per_d
     axs[4].plot(Zmag, marker='.', color='green')
     axs[4].set_title('MAG Z Component')
     axs[4].set_ylabel('Z nT')
-    axs[4].set_xlabel('Time (s)')
+    axs[4].set_xlabel('Data Points')
 
     # Change x-axis labels to dates
     # num_ticks = (datetime.strptime(end_date, '%Y-%m-%d') - datetime.strptime(start_date, '%Y-%m-%d')).days + 1
@@ -243,3 +245,25 @@ def generateDataPlots(NSsq, Zsq, NSmag, EWmag, Zmag, sample_count, samples_per_d
     # axs[4].set_xticks(tick_positions)
     # axs[4].set_xticklabels(tick_dates)
     # axs[4].set_xlabel("Date")
+
+def dickey_fuller_test(series):
+    """
+    Perform the Augmented Dickey-Fuller test.
+
+    Parameters:
+    - series (pd.Series): The time series data to test.
+
+    Returns:
+    - dict: A dictionary with the test results.
+    """
+    result = adfuller(series)
+    return {
+        'Test Statistic': result[0],
+        'p-value': result[1],
+        'Lags Used': result[2],
+        'Number of Observations Used': result[3],
+        'Critical Values': result[4],
+        'IC Best': result[5]
+    }
+
+
