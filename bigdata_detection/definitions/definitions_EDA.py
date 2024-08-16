@@ -348,20 +348,20 @@ def dickey_fuller_test(series):
 
 def test_stationarity(df):
     for column in df.columns:
-    print(f"Analyzing column: {column}")
+        print(f"Analyzing column: {column}")
 
-    # Visual Inspection
-    plt.figure(figsize=(12, 6))
-    plt.plot(df.index, df[column], label=f'{column} Time Series')
-    plt.title(f'Time Series Data - {column}')
-    plt.xlabel('Date')
-    plt.ylabel('Values')
-    plt.legend()
-    plt.show()
+        # Visual Inspection
+        plt.figure(figsize=(12, 6))
+        plt.plot(df.index, df[column], label=f'{column} Time Series')
+        plt.title(f'Time Series Data - {column}')
+        plt.xlabel('Date')
+        plt.ylabel('Values')
+        plt.legend()
+        plt.show()
 
-    # Seasonal Decomposition
-    print(f"Decomposing the time series for column: {column}")
-    result = seasonal_decompose(df[column].dropna(), model='additive', period=1)
+        # Seasonal Decomposition
+        print(f"Decomposing the time series for column: {column}")
+        result = seasonal_decompose(df[column].dropna(), model='additive', period=1)
 
     # Plot the decomposed components
     result.plot()
