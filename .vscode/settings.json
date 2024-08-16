@@ -1,5 +1,6 @@
 {
     "python.analysis.extraPaths": [
         "./bigdata_detection/definitions"
-    ]
+    ],
+    "python.REPL.enableREPLSmartSend": false
 }
