@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from scipy.fftpack import ifft
 from statsmodels.tsa.stattools import adfuller
+from statsmodels.tsa.seasonal import seasonal_decompose
 
 
 def read_txt_file(file_path):
@@ -77,10 +78,13 @@ def calculate_fourier_transforms(df):
 
 # Resample the data to a lower frequency
 def resample_data(df, resample_frequency):
-    df_resampled = df.resample(resample_frequency).mean()
-    # print(f"Resampled data frame shape: \n {df_resampled.shape}")
-    print(f"Resampled data frame head: \n {df_resampled.head()}")
+    df_resampled = pd.DataFrame()
+    for column in df.columns:
+        df_resampled[column] = df[column].resample(resample_frequency).mean()
     # df_resampled = df_resampled.ffill().bfill()
+    # print the number of dropped rows
+    print(f"Number of dropped rows: {df_resampled.isnull().sum()}")
+    df_resampled = df_resampled.dropna()
     return df_resampled
 
 def plot_fourier_transform(fourier_results, components):
@@ -90,7 +94,7 @@ def plot_fourier_transform(fourier_results, components):
     for i, component in enumerate(components[1:], 1):
         frequencies, fourier_transform = fourier_results[component]
         plt.subplot(3, 2, i)
-        plt.plot(frequencies[:len(frequencies)//2], 2.0/len(fourier_transform) * np.abs(fourier_transform[:len(fourier_transform)//2]))
+        # plt.plot(np.abs(fourier_transform[:len(fourier_transform) * np.abs(fourier_transform[:len(fourier_transform)//2]))
         # plt.plot(frequencies, np.abs(fourier_transform))
         plt.title(f'Fourier Transform of {component}')
         plt.xlabel('Frequency [Hz]')
@@ -99,8 +103,70 @@ def plot_fourier_transform(fourier_results, components):
         plt.xscale('log')
         # plt.xlim(0, max(frequencies[:len(frequencies)//2]))  # Set x-axis limit to fit the data
 
+        # plt.xlim(0, max(frequencies[:len(frequencies)//2]))  # Set x-axis limit to fit the data
+
     plt.tight_layout()
     # plt.show()
+
+def perform_dickey_fuller_test(df):
+    df_results = {}
+    for column in df.columns:
+        df_results[column] = dickey_fuller_test(pd.Series(df[column]))
+
+# Display the results
+    for column, result in df_results.items():
+        print(f"Dickey-Fuller Test for {column}:")
+        for key, value in result.items():
+            print(f"{key}: {value}")
+        print("\n")
+
+def remove_outliers(df):
+    iqr = df.quantile(0.75) - df.quantile(0.25)
+    q3  = df.quantile(0.75)
+    q1  = df.quantile(0.25)
+    upper = q3 + (1.5 * iqr)
+    print(f"Upper: {upper}")
+    upper_array = df >= upper
+
+    lower = q1 - (1.5 * iqr)
+    print(f"Lower: {lower}")
+    lower_array = df <= lower
+    total = upper_array.sum() + lower_array.sum()
+    new_df = df[(df < upper) & (df > lower)]
+    new_df = new_df.dropna()
+    removed_values_index = df.index.difference(new_df.index)
+    print("Index of removed values:", removed_values_index)
+    return new_df
+
+
+
+def plot_seasonal_decompose(df):
+    components = ['Time', 'NS_SQUID', 'F_SQUID', 'NS_Fluxgate', 'EW_Fluxgate', 'Z_Fluxgate']
+    fig, axes = plt.subplots(3, 2, figsize=(14, 10))
+
+    for i, component in enumerate(components[1:], 1):
+        df[f'{component}_trend'].plot(ax=axes[i // 2, i % 2], color='blue')
+        axes[i // 2, i % 2].set_title(f'{component} Trend')
+        axes[i // 2, i % 2].set_ylabel('Amplitude')
+        axes[i // 2, i % 2].set_xlabel('Time')
+        axes[i // 2, i % 2].grid(False)
+
+        df[f'{component}_seasonal'].plot(ax=axes[i // 2, i % 2], color='red')
+        axes[i // 2, i % 2].set_title(f'{component} Seasonal')
+        axes[i // 2, i % 2].set_ylabel('Amplitude')
+        axes[i // 2, i % 2].set_xlabel('Time')
+        axes[i // 2, i % 2].grid(False)
+
+        df[f'{component}_residual'].plot(ax=axes[i // 2, i % 2], color='green')
+        axes[i // 2, i % 2].set_title(f'{component} Residual')
+        axes[i // 2, i % 2].set_ylabel('Amplitude')
+        axes[i // 2, i % 2].set_xlabel('Time')
+        axes[i // 2, i % 2].grid(False)
+
+    plt.tight_layout()
+    plt.show()
+
+
 
 
 # Describe the data, 
@@ -157,6 +223,14 @@ def discontinuity_check(df):
     df_cleaned = df[~discontinuities.any(axis=1)]
 
     return records_with_discontinuities, threshold, df_cleaned 
+
+
+
+def is_continuous(series):
+    id_first_true = (series > 0).idxmax()
+    id_last_true = (series > 0)[::-1].idxmax()
+    return all((series > 0).loc[id_first_true:id_last_true] == True) 
+
 
 # Detrend the data
 # def detrend_data(df):
@@ -271,4 +345,31 @@ def dickey_fuller_test(series):
         'IC Best': result[5]
     }
 
+
+def test_stationarity(df):
+    for column in df.columns:
+    print(f"Analyzing column: {column}")
+
+    # Visual Inspection
+    plt.figure(figsize=(12, 6))
+    plt.plot(df.index, df[column], label=f'{column} Time Series')
+    plt.title(f'Time Series Data - {column}')
+    plt.xlabel('Date')
+    plt.ylabel('Values')
+    plt.legend()
+    plt.show()
+
+    # Seasonal Decomposition
+    print(f"Decomposing the time series for column: {column}")
+    result = seasonal_decompose(df[column].dropna(), model='additive', period=1)
+
+    # Plot the decomposed components
+    result.plot()
+    plt.suptitle(f'Seasonal Decomposition - {column}', fontsize=16)
+    plt.show()
+
+    # Access the trend, seasonal, and residual components
+    trend = result.trend
+    seasonal = result.seasonal
+    residual = result.resid
 
