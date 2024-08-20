@@ -6,6 +6,7 @@ import pandas as pd
 from scipy.fftpack import ifft
 from statsmodels.tsa.stattools import adfuller
 from statsmodels.tsa.seasonal import seasonal_decompose
+from scipy import stats
 
 
 def read_txt_file(file_path):
@@ -124,21 +125,45 @@ def remove_outliers(df):
     iqr = df.quantile(0.75) - df.quantile(0.25)
     q3  = df.quantile(0.75)
     q1  = df.quantile(0.25)
-    upper = q3 + (1.5 * iqr)
-    print(f"Upper: {upper}")
+    upper = q3 + (2 * iqr)
+    print(f"Upper limit:\n {upper}")
     upper_array = df >= upper
 
-    lower = q1 - (1.5 * iqr)
-    print(f"Lower: {lower}")
+    lower = q1 - (2 * iqr)
+    print(f"Lower limit:\n {lower}")
     lower_array = df <= lower
     total = upper_array.sum() + lower_array.sum()
     new_df = df[(df < upper) & (df > lower)]
     new_df = new_df.dropna()
+    # new_df = new_df.interpolate(method="time") 
     removed_values_index = df.index.difference(new_df.index)
-    print("Index of removed values:", removed_values_index)
+    # print("Index of removed values:", removed_values_index)
+    # print the number of outiers removed
+    print(f"Number of outliers removed:\n {total}")
     return new_df
 
+def z_score_test(df):
+    df = df.reset_index(drop=True)
+    z = np.abs(stats.zscore(df))
+    threshold_z = 2
+    outlier_indices = np.where(z > threshold_z)[0]
+    removed_outliers_df = df.drop(outlier_indices)
+    print(z)
+    print("Number of outliers removed from each column:")
+    for column in removed_outliers_df.columns:
+        print(f"{column}: {removed_outliers_df[column].shape[0]}")
 
+    return removed_outliers_df
+
+# def denoise_df(df):
+#     denoised_df = fft_denoiser(value, 0.001, True) 
+#     plt.plot(time, google_stock['Open'][0:300]) 
+#     plt.plot(time, denoised_google_stock_price) 
+#     plt.xlabel('Date', fontsize = 13) 
+#     plt.ylabel('Stock Price', fontsize = 13) 
+#     plt.legend([‘Open’,’Denoised: 0.001']) 
+#     plt.show()
+#     return denoise_df
 
 def plot_seasonal_decompose(df):
     components = ['Time', 'NS_SQUID', 'F_SQUID', 'NS_Fluxgate', 'EW_Fluxgate', 'Z_Fluxgate']
@@ -317,13 +342,13 @@ def generateDataPlots(NSsq, Zsq, NSmag, EWmag, Zmag, sample_count, samples_per_d
     axs[4].set_xlabel('Data Points')
 
     # Change x-axis labels to dates
-    # num_ticks = (datetime.strptime(end_date, '%Y-%m-%d') - datetime.strptime(start_date, '%Y-%m-%d')).days + 1
-    # tick_positions = np.linspace(-1, sample_count - 1, num_ticks)
-    # tick_labels = [(pos // samples_per_day) + 1 for pos in tick_positions]
-    # tick_dates = [(datetime.strptime(start_date, '%Y-%m-%d') + timedelta(days=label)).strftime('%Y-%m-%d') for label in tick_labels]
-    # axs[4].set_xticks(tick_positions)
-    # axs[4].set_xticklabels(tick_dates)
-    # axs[4].set_xlabel("Date")
+    num_ticks = (datetime.strptime(end_date, '%Y-%m-%d') - datetime.strptime(start_date, '%Y-%m-%d')).days + 1
+    tick_positions = np.linspace(-1, sample_count - 1, num_ticks)
+    tick_labels = [(pos // samples_per_day) + 1 for pos in tick_positions]
+    tick_dates = [(datetime.strptime(start_date, '%Y-%m-%d') + timedelta(days=label)).strftime('%Y-%m-%d') for label in tick_labels]
+    axs[4].set_xticks(tick_positions)
+    axs[4].set_xticklabels(tick_dates)
+    axs[4].set_xlabel("Date")
 
 def dickey_fuller_test(series):
     """
