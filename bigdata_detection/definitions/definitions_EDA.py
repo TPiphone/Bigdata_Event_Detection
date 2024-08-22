@@ -31,8 +31,8 @@ def get_data(file_type, read_txt_file, start_date, end_date):
     date_range = pd.date_range(start=start_date, end=end_date, freq='D')
 
     for single_date in date_range:
-        # file_path = f'/Users/tristan/Library/CloudStorage/OneDrive-StellenboschUniversity/Academics/Final_year/Semester 2/Skripsie/Data/SANSA/{single_date.strftime("%Y-%m-%d")}.{file_type}'
-        file_path = f'/Users/tristan/Library/CloudStorage/OneDrive-StellenboschUniversity/Academics/Final_year/Semester 2/Skripsie/Data/DUMMY/{single_date.strftime("%Y-%m-%d")}.{file_type}'
+        file_path = f'/Users/tristan/Library/CloudStorage/OneDrive-StellenboschUniversity/Academics/Final_year/Semester 2/Skripsie/Data/SANSA/{single_date.strftime("%Y-%m-%d")}.{file_type}'
+        # file_path = f'/Users/tristan/Library/CloudStorage/OneDrive-StellenboschUniversity/Academics/Final_year/Semester 2/Skripsie/Data/DUMMY/{single_date.strftime("%Y-%m-%d")}.{file_type}'
         # print(file_path)
         try:
             data += read_txt_file(file_path)
@@ -45,18 +45,58 @@ def get_data(file_type, read_txt_file, start_date, end_date):
 def process_data(data):
     data_lines = data.strip().split('\n')
     data_array = pd.DataFrame([list(map(float, line.split())) for line in data_lines])
+    # index_range = (data_array.index >= 431996) & (data_array.index <= 432000)
+    # print(data_array[index_range])
     return data_array
 
+import pandas as pd
+
 def create_dataframe(data_arr_mag, data_arr_squid, start_date):
+    """
+    Creates a DataFrame from magnetometer and SQUID data arrays and sets up the time index.
+
+    Parameters:
+    - data_arr_mag (pd.DataFrame): DataFrame containing the magnetometer data.
+    - data_arr_squid (pd.DataFrame): DataFrame containing the SQUID data.
+    - start_date (str or pd.Timestamp): The start date for the time series.
+
+    Returns:
+    - df (pd.DataFrame): The resulting DataFrame with time-based indexing.
+    """
     components = ['Time', 'NS_SQUID', 'F_SQUID', 'NS_Fluxgate', 'EW_Fluxgate', 'Z_Fluxgate']
-    mag_data_without_time = data_arr_mag.drop(columns=[0])  
+
+    # Drop the 'Time' column from the magnetometer data array (assuming it's the first column)
+    mag_data_without_time = data_arr_mag.drop(columns=[0])
+
+    # Concatenate the SQUID data and the magnetometer data
     df = pd.concat([data_arr_squid, mag_data_without_time], axis=1)
     df.columns = components
+
+    df = df.reset_index(drop=True)
+
+    # Generate the 'Time' column as a datetime index, considering the start date and time in seconds
     df['Time'] = pd.to_datetime(start_date) + pd.to_timedelta(df['Time'], unit='s')
-    df.set_index('Time', inplace=True)  # Set the 'Time' column as the index
-    # df.index.freq = '200L'  # Set the frequency of the time series data to 5 Hz (200 milliseconds)
-    df.index.freq = pd.infer_freq(df.index)
+
+    # Set 'Time' as the DataFrame index
+    df.set_index('Time', inplace=True)
+
+    # Check for and handle duplicate indices
+    duplicate_indices = df.index[df.index.duplicated()]
+    print(f"The total number of duplicates is: {len(duplicate_indices)}")
+
+    if len(duplicate_indices) > 0:
+        # If duplicates are found, increment the duplicates by a small time offset
+        df.index = df.index + pd.to_timedelta(df.groupby(df.index).cumcount(), unit='ns')
+
+    # Optionally, infer the frequency of the time series and set it
+    inferred_freq = pd.infer_freq(df.index)
+    if inferred_freq:
+        df.index.freq = inferred_freq
+
     return df
+
+
+######################################## CHECKED ##############################################
 
 # Calculate the Fourier Transform for each component
 def calculate_fourier_transform(data, sampling_frequency):
@@ -82,11 +122,15 @@ def resample_data(df, resample_frequency):
     df_resampled = pd.DataFrame()
     for column in df.columns:
         df_resampled[column] = df[column].resample(resample_frequency).mean()
-    # df_resampled = df_resampled.ffill().bfill()
+    # df_resampled = df_resampled.interpolate()
+    # print(f"Head before dropping na\n",df_resampled)
     # print the number of dropped rows
-    print(f"Number of dropped rows: {df_resampled.isnull().sum()}")
+    # print(f"Number of dropped rows: \n{df_resampled.isnull().sum()}")
     df_resampled = df_resampled.dropna()
     return df_resampled
+
+
+
 
 def plot_fourier_transform(fourier_results, components):
     # Plot the results
@@ -125,12 +169,12 @@ def remove_outliers(df):
     iqr = df.quantile(0.75) - df.quantile(0.25)
     q3  = df.quantile(0.75)
     q1  = df.quantile(0.25)
-    upper = q3 + (2 * iqr)
-    print(f"Upper limit:\n {upper}")
+    upper = q3 + (2.5 * iqr)
+    # print(f"Upper limit:\n {upper}")
     upper_array = df >= upper
 
-    lower = q1 - (2 * iqr)
-    print(f"Lower limit:\n {lower}")
+    lower = q1 - (2.5 * iqr)
+    # print(f"Lower limit:\n {lower}")
     lower_array = df <= lower
     total = upper_array.sum() + lower_array.sum()
     new_df = df[(df < upper) & (df > lower)]
@@ -143,11 +187,10 @@ def remove_outliers(df):
     return new_df
 
 def z_score_test(df):
-    df = df.reset_index(drop=True)
-    z = np.abs(stats.zscore(df))
-    threshold_z = 2
-    outlier_indices = np.where(z > threshold_z)[0]
-    removed_outliers_df = df.drop(outlier_indices)
+    z = np.abs(stats.zscore(df.iloc[:, 1:]))  # Exclude the index column
+    threshold_z = 3
+    outlier_indices = np.where(z > threshold_z)
+    removed_outliers_df = df.drop(outlier_indices[0])
     print(z)
     print("Number of outliers removed from each column:")
     for column in removed_outliers_df.columns:
@@ -319,9 +362,14 @@ def generateDataPlots(NSsq, Zsq, NSmag, EWmag, Zmag, sample_count, samples_per_d
     fig, axs = plt.subplots(5, 1, figsize=(16, 10), sharex=True, num='Data Plots')
 
     # Plot Squid data
+
+
+
+    
     axs[0].plot(NSsq, marker='.', color='red')
     axs[0].set_title('Squid NS Component')
     axs[0].set_ylabel('NS nT (relative)')
+    axs[0].axhline(y=100, color='black', linestyle='--')
 
     axs[1].plot(Zsq, marker='.', color='blue')
     axs[1].set_title('Squid F Component')
@@ -342,13 +390,13 @@ def generateDataPlots(NSsq, Zsq, NSmag, EWmag, Zmag, sample_count, samples_per_d
     axs[4].set_xlabel('Data Points')
 
     # Change x-axis labels to dates
-    num_ticks = (datetime.strptime(end_date, '%Y-%m-%d') - datetime.strptime(start_date, '%Y-%m-%d')).days + 1
-    tick_positions = np.linspace(-1, sample_count - 1, num_ticks)
-    tick_labels = [(pos // samples_per_day) + 1 for pos in tick_positions]
-    tick_dates = [(datetime.strptime(start_date, '%Y-%m-%d') + timedelta(days=label)).strftime('%Y-%m-%d') for label in tick_labels]
-    axs[4].set_xticks(tick_positions)
-    axs[4].set_xticklabels(tick_dates)
-    axs[4].set_xlabel("Date")
+    # num_ticks = (datetime.strptime(end_date, '%Y-%m-%d') - datetime.strptime(start_date, '%Y-%m-%d')).days + 1
+    # tick_positions = np.linspace(-1, sample_count - 1, num_ticks)
+    # tick_labels = [(pos // samples_per_day) + 1 for pos in tick_positions]
+    # tick_dates = [(datetime.strptime(start_date, '%Y-%m-%d') + timedelta(days=label)).strftime('%Y-%m-%d') for label in tick_labels]
+    # axs[4].set_xticks(tick_positions)
+    # axs[4].set_xticklabels(tick_dates)
+    # axs[4].set_xlabel("Date")
 
 def dickey_fuller_test(series):
     """
