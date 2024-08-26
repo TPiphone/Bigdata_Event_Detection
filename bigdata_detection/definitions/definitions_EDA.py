@@ -118,15 +118,78 @@ def calculate_fourier_transforms(df):
     return components,fourier_results
 
 # Resample the data to a lower frequency
-def resample_data(df, resample_frequency):
-    df_resampled = pd.DataFrame()
-    for column in df.columns:
-        df_resampled[column] = df[column].resample(resample_frequency).mean()
-    # df_resampled = df_resampled.interpolate()
-    # print(f"Head before dropping na\n",df_resampled)
-    # print the number of dropped rows
-    # print(f"Number of dropped rows: \n{df_resampled.isnull().sum()}")
+# def resample_data(df, resample_frequency):
+#     df_resampled = pd.DataFrame()
+#     for column in df.columns:
+#         df_resampled[column] = df[column].resample(resample_frequency).mean()
+#     # df_resampled = df_resampled.interpolate()
+#     # print(f"Head before dropping na\n",df_resampled)
+#     # print the number of dropped rows
+#     # print(f"Number of dropped rows: \n{df_resampled.isnull().sum()}")
+#     df_resampled = df_resampled.dropna()
+#     return df_resampled
+
+
+def manual_resample_data(df, resample_frequency, agg_methods=None, interpolate=False):
+    """
+    Manually resample the DataFrame to a lower frequency.
+
+    Parameters:
+        df (pd.DataFrame): The input DataFrame.
+        resample_frequency (str): The resampling frequency (e.g., 'S', 'D', 'W', 'M').
+        agg_methods (dict or str, optional): Aggregation methods for resampling.
+                                             Can be a string (e.g., 'mean') or a 
+                                             dictionary specifying methods per column.
+        interpolate (bool, optional): Whether to interpolate missing values after resampling.
+
+    Returns:
+        pd.DataFrame: The resampled DataFrame.
+    """
+    # Convert index to a datetime index if it is not already
+    if not isinstance(df.index, pd.DatetimeIndex):
+        df.index = pd.to_datetime(df.index)
+
+    # Determine how to group the data based on the resample frequency
+    if resample_frequency == 's':
+        grouped = df.groupby([df.index.year, df.index.month, df.index.day, df.index.hour, df.index.minute, df.index.second])
+    elif resample_frequency == 'D':
+        grouped = df.groupby(df.index.date)
+    elif resample_frequency == 'W':
+        grouped = df.groupby(df.index.to_period('W').start_time)
+    elif resample_frequency == 'M':
+        grouped = df.groupby(df.index.to_period('M').start_time)
+    elif resample_frequency == 'Q':
+        grouped = df.groupby(df.index.to_period('Q').start_time)
+    elif resample_frequency == 'Y':
+        grouped = df.groupby(df.index.to_period('Y').start_time)
+    else:
+        raise ValueError("Unsupported resample frequency. Use 'S', 'D', 'W', 'M', 'Q', or 'Y'.")
+
+    # Apply the aggregation method or default to mean if not provided
+    if agg_methods is None:
+        agg_methods = 'mean'
+
+    if isinstance(agg_methods, str):
+        # If a single method is provided as a string, apply it to all columns
+        df_resampled = grouped.agg(agg_methods)
+    elif isinstance(agg_methods, dict):
+        # If a dictionary is provided, apply the specified methods to each column
+        df_resampled = grouped.agg(agg_methods)
+    else:
+        raise ValueError("agg_methods must be a string or a dictionary")
+
+    if interpolate:
+        df_resampled = df_resampled.interpolate()
+
+    # Print the number of dropped rows due to missing values
+    missing_before_dropping = df_resampled.isnull().sum().sum()
+    print(f"Number of missing values before dropping rows: {missing_before_dropping}")
+    
     df_resampled = df_resampled.dropna()
+    
+    missing_after_dropping = df_resampled.isnull().sum().sum()
+    print(f"Number of missing values after dropping rows: {missing_after_dropping}")
+
     return df_resampled
 
 
@@ -186,16 +249,23 @@ def remove_outliers(df):
     print(f"Number of outliers removed:\n {total}")
     return new_df
 
-def z_score_test(df):
-    z = np.abs(stats.zscore(df.iloc[:, 1:]))  # Exclude the index column
-    threshold_z = 3
+def z_score_test(df, threshold_z=3):
+    # Calculate the Z-scores for each column (excluding the index)
+    z = np.abs(stats.zscore(df.iloc[:, 1:]))  # Assumes the first column is to be excluded
+    
+    # Find outlier indices
     outlier_indices = np.where(z > threshold_z)
-    removed_outliers_df = df.drop(outlier_indices[0])
+    
+    # Identify rows with any outlier and drop them
+    rows_to_drop = np.unique(outlier_indices[0])
+    removed_outliers_df = df.drop(df.index[rows_to_drop])
+    
+    # Print Z-scores
     print(z)
-    print("Number of outliers removed from each column:")
-    for column in removed_outliers_df.columns:
-        print(f"{column}: {removed_outliers_df[column].shape[0]}")
-
+    
+    # Print the number of outliers removed
+    print(f"Number of outliers removed: {len(df) - len(removed_outliers_df)}")
+    
     return removed_outliers_df
 
 # def denoise_df(df):
@@ -369,7 +439,7 @@ def generateDataPlots(NSsq, Zsq, NSmag, EWmag, Zmag, sample_count, samples_per_d
     axs[0].plot(NSsq, marker='.', color='red')
     axs[0].set_title('Squid NS Component')
     axs[0].set_ylabel('NS nT (relative)')
-    axs[0].axhline(y=100, color='black', linestyle='--')
+    # axs[0].axhline(y=100, color='black', linestyle='--')
 
     axs[1].plot(Zsq, marker='.', color='blue')
     axs[1].set_title('Squid F Component')
@@ -420,29 +490,47 @@ def dickey_fuller_test(series):
 
 
 def test_stationarity(df):
+    decomposed_results = {}  # Store decomposition results for each column
+    
     for column in df.columns:
+        if not pd.api.types.is_numeric_dtype(df[column]):
+            print(f"Skipping non-numeric column: {column}")
+            continue
+        
         print(f"Analyzing column: {column}")
-
+        
         # Visual Inspection
         plt.figure(figsize=(12, 6))
-        plt.plot(df.index, df[column], label=f'{column} Time Series')
+        plt.plot(df.index, df[column], label=f'{column} Time Series', color='blue')
         plt.title(f'Time Series Data - {column}')
         plt.xlabel('Date')
         plt.ylabel('Values')
         plt.legend()
+        plt.grid(True)
         plt.show()
-
+        
         # Seasonal Decomposition
         print(f"Decomposing the time series for column: {column}")
-        result = seasonal_decompose(df[column].dropna(), model='additive', period=1)
+        try:
+            result = seasonal_decompose(df[column].dropna(), model='additive', period=None)  # Adjust period if known
+            decomposed_results[column] = result  # Store the result
+            
+            # Plot the decomposed components
+            result.plot()
+            plt.suptitle(f'Seasonal Decomposition - {column}', fontsize=16)
+            plt.show()
 
-    # Plot the decomposed components
-    result.plot()
-    plt.suptitle(f'Seasonal Decomposition - {column}', fontsize=16)
-    plt.show()
+        except Exception as e:
+            print(f"Error decomposing {column}: {e}")
+            continue
 
-    # Access the trend, seasonal, and residual components
-    trend = result.trend
-    seasonal = result.seasonal
-    residual = result.resid
+        # Access the trend, seasonal, and residual components if needed
+        trend = result.trend
+        seasonal = result.seasonal
+        residual = result.resid
+        
+        print(f"Trend:\n{trend.dropna().head()}")
+        print(f"Seasonal:\n{seasonal.dropna().head()}")
+        print(f"Residual:\n{residual.dropna().head()}")
 
+    return decomposed_results
