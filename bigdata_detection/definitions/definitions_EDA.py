@@ -5,8 +5,10 @@ import numpy as np
 import pandas as pd
 from scipy.fftpack import ifft
 from statsmodels.tsa.stattools import adfuller
+from scipy.ndimage import gaussian_filter1d
 from statsmodels.tsa.seasonal import seasonal_decompose
 from scipy import stats
+import gc
 
 
 def read_txt_file(file_path):
@@ -63,7 +65,7 @@ def create_dataframe(data_arr_mag, data_arr_squid, start_date):
     Returns:
     - df (pd.DataFrame): The resulting DataFrame with time-based indexing.
     """
-    components = ['Time', 'NS_SQUID', 'F_SQUID', 'NS_Fluxgate', 'EW_Fluxgate', 'Z_Fluxgate']
+    components = ['Time', 'NS_SQUID', 'Z_SQUID', 'NS_Fluxgate', 'EW_Fluxgate', 'Z_Fluxgate']
 
     # Drop the 'Time' column from the magnetometer data array (assuming it's the first column)
     mag_data_without_time = data_arr_mag.drop(columns=[0])
@@ -72,7 +74,7 @@ def create_dataframe(data_arr_mag, data_arr_squid, start_date):
     df = pd.concat([data_arr_squid, mag_data_without_time], axis=1)
     df.columns = components
 
-    df = df.reset_index(drop=True)
+    # df = df.reset_index(drop=True)
 
     # Generate the 'Time' column as a datetime index, considering the start date and time in seconds
     df['Time'] = pd.to_datetime(start_date) + pd.to_timedelta(df['Time'], unit='s')
@@ -109,7 +111,7 @@ def calculate_fourier_transform(data, sampling_frequency):
 # Apply Fourier Transform
 def calculate_fourier_transforms(df):
     sampling_frequency = 1  # 5 measurements per second
-    components = ['Time', 'NS_SQUID', 'F_SQUID', 'NS_Fluxgate', 'EW_Fluxgate', 'Z_Fluxgate']
+    components = ['Time', 'NS_SQUID', 'Z_SQUID', 'NS_Fluxgate', 'EW_Fluxgate', 'Z_Fluxgate']
 
     fourier_results = {}
     for component in components[1:]:
@@ -118,16 +120,26 @@ def calculate_fourier_transforms(df):
     return components,fourier_results
 
 # Resample the data to a lower frequency
-# def resample_data(df, resample_frequency):
-#     df_resampled = pd.DataFrame()
-#     for column in df.columns:
-#         df_resampled[column] = df[column].resample(resample_frequency).mean()
-#     # df_resampled = df_resampled.interpolate()
-#     # print(f"Head before dropping na\n",df_resampled)
-#     # print the number of dropped rows
-#     # print(f"Number of dropped rows: \n{df_resampled.isnull().sum()}")
-#     df_resampled = df_resampled.dropna()
-#     return df_resampled
+def resample_data(df, resample_frequency):
+
+    components = ['Time', 'NS_SQUID', 'Z_SQUID', 'NS_Fluxgate', 'EW_Fluxgate', 'Z_Fluxgate']
+    for component in components[1:]:
+        ser = df[component].squeeze()
+        
+
+    if not isinstance(df.index, pd.DatetimeIndex):
+        df.index = pd.to_datetime(df.index)
+
+    # Group by the date part of the index and resample within each group
+    df_resampled = df.groupby(df.index.date).apply(lambda x: x.resample(resample_frequency).mean())
+
+    # Convert the index back to a DatetimeIndex if necessary
+    df_resampled.index = pd.to_datetime(df_resampled.index.get_level_values(1))
+
+    # Drop any rows with NaN values
+    df_resampled = df_resampled.dropna()
+
+    return df_resampled
 
 
 def manual_resample_data(df, resample_frequency, agg_methods=None, interpolate=False):
@@ -279,7 +291,7 @@ def z_score_test(df, threshold_z=3):
 #     return denoise_df
 
 def plot_seasonal_decompose(df):
-    components = ['Time', 'NS_SQUID', 'F_SQUID', 'NS_Fluxgate', 'EW_Fluxgate', 'Z_Fluxgate']
+    components = ['Time', 'NS_SQUID', 'Z_SQUID', 'NS_Fluxgate', 'EW_Fluxgate', 'Z_Fluxgate']
     fig, axes = plt.subplots(3, 2, figsize=(14, 10))
 
     for i, component in enumerate(components[1:], 1):
@@ -432,29 +444,26 @@ def generateDataPlots(NSsq, Zsq, NSmag, EWmag, Zmag, sample_count, samples_per_d
     fig, axs = plt.subplots(5, 1, figsize=(16, 10), sharex=True, num='Data Plots')
 
     # Plot Squid data
-
-
-
     
-    axs[0].plot(NSsq, marker='.', color='red')
+    axs[0].plot(NSsq, marker='.', color='red', linewidth = 0.5)
     axs[0].set_title('Squid NS Component')
     axs[0].set_ylabel('NS nT (relative)')
     # axs[0].axhline(y=100, color='black', linestyle='--')
 
-    axs[1].plot(Zsq, marker='.', color='blue')
-    axs[1].set_title('Squid F Component')
-    axs[1].set_ylabel('F nT (relative)')
+    axs[1].plot(Zsq, marker='.', color='blue', linewidth = 0.5)
+    axs[1].set_title('Squid Z Component')
+    axs[1].set_ylabel('Z nT (relative)')
 
     # Plot CTU Magnetometer data
-    axs[2].plot(NSmag, marker='.', color='orange')
+    axs[2].plot(NSmag, marker='.', color='orange', linewidth = 0.5)
     axs[2].set_title('MAG NS Component')
     axs[2].set_ylabel('NS nT')
 
-    axs[3].plot(EWmag, marker='.', color='purple')
+    axs[3].plot(EWmag, marker='.', color='purple', linewidth = 0.5)
     axs[3].set_title('MAG EW Component')
     axs[3].set_ylabel('EW nT')
 
-    axs[4].plot(Zmag, marker='.', color='green')
+    axs[4].plot(Zmag, marker='.', color='green', linewidth = 0.5)
     axs[4].set_title('MAG Z Component')
     axs[4].set_ylabel('Z nT')
     axs[4].set_xlabel('Data Points')
@@ -534,3 +543,77 @@ def test_stationarity(df):
         print(f"Residual:\n{residual.dropna().head()}")
 
     return decomposed_results
+
+
+def detect_spikes_and_correct(df, column_name, threshold=15):
+    """
+    Detects spikes in the data and smooths them by adjusting the spike value.
+
+    Parameters:
+    - df (pd.DataFrame): The DataFrame containing the data.
+    - column_name (str): The name of the column to check for spikes.
+    - threshold (float): The threshold for detecting spikes in terms of standard deviations.
+
+    Returns:
+    - corrected_df (pd.DataFrame): The DataFrame with the spikes corrected.
+    """
+
+    # Ensure the DataFrame index is a DatetimeIndex
+    if not isinstance(df.index, pd.DatetimeIndex):
+        raise ValueError("The DataFrame index must be a DatetimeIndex.")
+    
+    # Calculate the difference between consecutive values
+    diff = df[column_name].diff()
+
+    # Detect spikes by finding where the difference exceeds the threshold
+    # std_dev = diff.std()
+    spikes = diff.abs() > threshold # * std_dev
+    # print(spikes)
+    # Get the indices where spikes occur
+    spike_indices = spikes[spikes].index
+    print(spike_indices)
+    if len(spike_indices) == 0:
+        print("No spikes detected.")
+        return df
+
+    # print(f"Spikes detected at indices: {spike_indices}")
+    print(f" Found ",len(spike_indices), "spikes")
+    corrected_df = df.copy()
+
+    for index in spike_indices:
+        # Find the positions before and after the spike
+        prev_index = corrected_df.index.get_loc(index) - 7500
+        next_index = corrected_df.index.get_loc(index) + 7500
+ 
+        # my_window = next_index - prev_index
+        my_window = 4000
+
+
+        smoothed_values = corrected_df.iloc[prev_index:next_index + 1, corrected_df.columns.get_loc(column_name)].rolling(window=my_window, min_periods=1).mean()
+        smoothed_values = gaussian_filter1d(smoothed_values, sigma=2000)
+        corrected_df.iloc[prev_index:next_index + 1, corrected_df.columns.get_loc(column_name)] = smoothed_values
+        # Apply moving average only between prev_index and next_index
+        # corrected_df.iloc[prev_index:next_index, corrected_df.columns.get_loc(column_name)] = corrected_df.iloc[prev_index:next_index, corrected_df.columns.get_loc(column_name)].rolling(window=my_window).mean()
+
+    return corrected_df
+
+def calculate_mean_of_five(df):
+    # Initialize an empty DataFrame to store the means
+    df_means = pd.DataFrame()
+
+    # Iterate over each column in the DataFrame
+    for column in df.columns:
+        # Initialize a list to hold the means for the current column
+        column_means = []
+        
+        # Iterate through the DataFrame in steps of 5
+        for i in range(0, len(df), 15):
+            # Get the mean of the current group of 5 numbers
+            group_mean = df[column].iloc[i:i+15].mean()
+            # Append the mean to the list for the current column
+            column_means.append(group_mean)
+        
+        # Add the list of means to the new DataFrame as a new column
+        df_means[column] = column_means
+
+    return df_means

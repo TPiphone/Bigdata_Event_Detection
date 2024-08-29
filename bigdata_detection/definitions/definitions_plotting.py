@@ -87,7 +87,7 @@ def generateDataPlots(NSsq, Zsq, NSmag, EWmag, Zmag, sample_count, samples_per_d
 
     axs[1].plot(Zsq[::5], marker='.', color='blue')
     axs[1].set_title('Squid F Component')
-    axs[1].set_ylabel('F nT (relative)')
+    axs[1].set_ylabel('Z nT (relative)')
 
     # Plot CTU Magnetometer data
     axs[2].plot(NSmag[::5], marker='.', color='orange')
