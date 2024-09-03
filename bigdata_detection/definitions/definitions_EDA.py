@@ -44,10 +44,32 @@ def get_data(file_type, read_txt_file, start_date, end_date):
     
     return data
 
+def convert_seconds_to_datetime(df):
+  """Converts the first column of a DataFrame from seconds since the start of the day to datetime.
+
+  Args:
+    df: Pandas DataFrame with the first column containing seconds since the start of the day.
+
+  Returns:
+    Pandas DataFrame with the first column converted to datetime.
+  """
+
+  # Create a datetime object for the start of the day
+  start_of_day = pd.Timestamp(df.index[0].date())
+
+  # Convert seconds to timedelta and add to the start of the day
+  df.iloc[:, 0] = start_of_day + pd.to_timedelta(df.iloc[:, 0], unit='s')
+
+  # Set the first column as the index
+  df.set_index(0, inplace=True)
+
+  return df
+
+
 def process_data(data):
     data_lines = data.strip().split('\n')
     data_array = pd.DataFrame([list(map(float, line.split())) for line in data_lines])
-    # index_range = (data_array.index >= 431996) & (data_array.index <= 432000)
+    # index_range = (data_array.index >= 431994) & (data_array.index <= 432000)
     # print(data_array[index_range])
     return data_array
 
@@ -73,15 +95,27 @@ def create_dataframe(data_arr_mag, data_arr_squid, start_date):
     # Concatenate the SQUID data and the magnetometer data
     df = pd.concat([data_arr_squid, mag_data_without_time], axis=1)
     df.columns = components
+    start_date = pd.to_datetime(start_date)
+    new_time = []
+    current_date = start_date
 
-    # df = df.reset_index(drop=True)
-
-    # Generate the 'Time' column as a datetime index, considering the start date and time in seconds
-    df['Time'] = pd.to_datetime(start_date) + pd.to_timedelta(df['Time'], unit='s')
-
-    # Set 'Time' as the DataFrame index
-    df.set_index('Time', inplace=True)
-
+    for i in range(len(df)):
+        # Check if it's time to move to the next day
+        if i > 0 and i % 431996 == 0:
+            current_date = current_date + pd.DateOffset(days=1)
+            print(current_date)
+        # Add the current time in seconds to the current date
+        new_time_value = pd.to_datetime(current_date) + pd.to_timedelta(df['Time'].iloc[i], unit='s')
+        new_time.append(new_time_value)
+    
+    # Assign the new time values back to the DataFrame
+    df['Time'] = new_time
+    
+    # Print the row every time the date changes
+    df['Date'] = df['Time'].dt.date
+    df['Date_change'] = df['Date'].ne(df['Date'].shift())
+    print(df[df['Date_change']])
+    
     # Check for and handle duplicate indices
     duplicate_indices = df.index[df.index.duplicated()]
     print(f"The total number of duplicates is: {len(duplicate_indices)}")
