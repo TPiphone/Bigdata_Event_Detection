@@ -9,73 +9,92 @@ from scipy.ndimage import gaussian_filter1d
 from statsmodels.tsa.seasonal import seasonal_decompose
 from scipy import stats
 import gc
+from io import StringIO
+import time
 
 
 def read_txt_file(file_path):
     with open(file_path, 'r') as file:
         data = file.read()
-    return data
+        df = pd.read_csv(StringIO(data), sep = "	")
+    return df
 
-def get_data(file_type, read_txt_file, start_date, end_date):
+# def get_data(read_txt_file, start_date, end_date):
+#     """
+#     Retrieves data from multiple files and concatenates them into a single string.
+
+#     Parameters:
+#     - file_type (str): The type of file to read (e.g., 'txt', 'csv', etc.).
+#     - read_txt_file (function): A function that reads a text file and returns its contents.
+#     - start_date (str): The start date in the format 'YYYY-MM-DD'.
+#     - end_date (str): The end date in the format 'YYYY-MM-DD'.
+
+#     Returns:
+#     - data (str): The concatenated data from all the files.
+#     """
+#     data = ''
+#     df = pd.DataFrame
+#     date_range = pd.date_range(start=start_date, end=end_date, freq='D')
+
+#     for single_date in date_range:
+#         file_path_ctu = f'/Users/tristan/Library/CloudStorage/OneDrive-StellenboschUniversity/Academics/Final_year/Semester 2/Skripsie/Data/SANSA/{single_date.strftime("%Y-%m-%d")}.ctumag'
+#         file_path_squ = f'/Users/tristan/Library/CloudStorage/OneDrive-StellenboschUniversity/Academics/Final_year/Semester 2/Skripsie/Data/SANSA/{single_date.strftime("%Y-%m-%d")}.squid'
+#         # file_path = f'/Users/tristan/Library/CloudStorage/OneDrive-StellenboschUniversity/Academics/Final_year/Semester 2/Skripsie/Data/DUMMY/{single_date.strftime("%Y-%m-%d")}.{file_type}'
+#         # print(file_path)
+#         try:
+#             df_ctu = read_txt_file(file_path_ctu)
+#             df_squ = read_txt_file(file_path_squ)
+#             df_ctu = df_ctu.drop(columns=[df_ctu.columns[0]])
+#             combined_df = pd.concat([df_squ, df_ctu], axis=1)
+#             # print(combined_df.head())
+#             new_df = create_dataframe(combined_df, single_date)
+#             df = df.append(new_df)
+#             del df_ctu, df_squ, combined_dßf, new_df
+#             gc.collect()
+#         except FileNotFoundError:
+#             print(f"File not found: {file_path_squ} or {file_path_ctu}")
+#             continue
+#     return df
+
+def get_data(read_txt_file, start_date, end_date):
     """
-    Retrieves data from multiple files and concatenates them into a single string.
+    Retrieves data from multiple files and concatenates them into a single DataFrame.
 
     Parameters:
-    - file_type (str): The type of file to read (e.g., 'txt', 'csv', etc.).
-    - read_txt_file (function): A function that reads a text file and returns its contents.
+    - read_txt_file (function): A function that reads a text file and returns its contents as a DataFrame.
     - start_date (str): The start date in the format 'YYYY-MM-DD'.
     - end_date (str): The end date in the format 'YYYY-MM-DD'.
 
     Returns:
-    - data (str): The concatenated data from all the files.
+    - df (DataFrame): The concatenated data from all the files.
     """
-    data = ''
     date_range = pd.date_range(start=start_date, end=end_date, freq='D')
+    df_list = []
 
     for single_date in date_range:
-        file_path = f'/Users/tristan/Library/CloudStorage/OneDrive-StellenboschUniversity/Academics/Final_year/Semester 2/Skripsie/Data/SANSA/{single_date.strftime("%Y-%m-%d")}.{file_type}'
-        # file_path = f'/Users/tristan/Library/CloudStorage/OneDrive-StellenboschUniversity/Academics/Final_year/Semester 2/Skripsie/Data/DUMMY/{single_date.strftime("%Y-%m-%d")}.{file_type}'
-        # print(file_path)
+        file_path_ctu = f'/Users/tristan/Library/CloudStorage/OneDrive-StellenboschUniversity/Academics/Final_year/Semester 2/Skripsie/Data/SANSA/{single_date.strftime("%Y-%m-%d")}.ctumag'
+        file_path_squ = f'/Users/tristan/Library/CloudStorage/OneDrive-StellenboschUniversity/Academics/Final_year/Semester 2/Skripsie/Data/SANSA/{single_date.strftime("%Y-%m-%d")}.squid'
+        
         try:
-            data += read_txt_file(file_path)
+            df_ctu = read_txt_file(file_path_ctu)
+            df_ctu = df_ctu.drop(columns=[df_ctu.columns[0]])
+            df_squ = read_txt_file(file_path_squ)
+            combined_df = pd.concat([df_squ, df_ctu], axis=1)
+            new_df = create_dataframe(combined_df, single_date)
+            df_list.append(new_df)
         except FileNotFoundError:
-            print(f"File not found: {file_path}")
-            continue
+            print(f"File not found for date: {single_date.strftime('%Y-%m-%d')}")
     
-    return data
+    # Combine all the dataframes into one
+    if df_list:
+        df = pd.concat(df_list, ignore_index=False)
+    else:
+        df = pd.DataFrame()
 
-def convert_seconds_to_datetime(df):
-  """Converts the first column of a DataFrame from seconds since the start of the day to datetime.
-
-  Args:
-    df: Pandas DataFrame with the first column containing seconds since the start of the day.
-
-  Returns:
-    Pandas DataFrame with the first column converted to datetime.
-  """
-
-  # Create a datetime object for the start of the day
-  start_of_day = pd.Timestamp(df.index[0].date())
-
-  # Convert seconds to timedelta and add to the start of the day
-  df.iloc[:, 0] = start_of_day + pd.to_timedelta(df.iloc[:, 0], unit='s')
-
-  # Set the first column as the index
-  df.set_index(0, inplace=True)
-
-  return df
+    return df
 
 
-def process_data(data):
-    data_lines = data.strip().split('\n')
-    data_array = pd.DataFrame([list(map(float, line.split())) for line in data_lines])
-    # index_range = (data_array.index >= 431994) & (data_array.index <= 432000)
-    # print(data_array[index_range])
-    return data_array
-
-import pandas as pd
-
-def create_dataframe(data_arr_mag, data_arr_squid, start_date):
+def create_dataframe(df, start_date):
     """
     Creates a DataFrame from magnetometer and SQUID data arrays and sets up the time index.
 
@@ -88,47 +107,34 @@ def create_dataframe(data_arr_mag, data_arr_squid, start_date):
     - df (pd.DataFrame): The resulting DataFrame with time-based indexing.
     """
     components = ['Time', 'NS_SQUID', 'Z_SQUID', 'NS_Fluxgate', 'EW_Fluxgate', 'Z_Fluxgate']
-
-    # Drop the 'Time' column from the magnetometer data array (assuming it's the first column)
-    mag_data_without_time = data_arr_mag.drop(columns=[0])
-
-    # Concatenate the SQUID data and the magnetometer data
-    df = pd.concat([data_arr_squid, mag_data_without_time], axis=1)
     df.columns = components
-    start_date = pd.to_datetime(start_date)
-    new_time = []
-    current_date = start_date
+   
+    df['DateTime'] = df['Time'].apply(lambda x: start_date + timedelta(seconds=x))
+    df = df.drop(columns=['Time'])
 
-    for i in range(len(df)):
-        # Check if it's time to move to the next day
-        if i > 0 and i % 431996 == 0:
-            current_date = current_date + pd.DateOffset(days=1)
-            print(current_date)
-        # Add the current time in seconds to the current date
-        new_time_value = pd.to_datetime(current_date) + pd.to_timedelta(df['Time'].iloc[i], unit='s')
-        new_time.append(new_time_value)
-    
-    # Assign the new time values back to the DataFrame
-    df['Time'] = new_time
-    
+    # Assuming 'df' is your DataFrame and 'date_column' is the column with date information
+    df['DateTime'] = pd.to_datetime(df['DateTime'])  # Convert the column to datetime
+    df.index = pd.DatetimeIndex(df['DateTime'])
+    # df.set_index('DateTime', inplace=True)  # Set the datetime column as the index
+
+
     # Print the row every time the date changes
-    df['Date'] = df['Time'].dt.date
-    df['Date_change'] = df['Date'].ne(df['Date'].shift())
-    print(df[df['Date_change']])
+    # df['Date'] = df['DateTime'].dt.date
+    # df['Date_change'] = df['Date'].ne(df['Date'].shift())
+    # print(df[df['Date_change']])
     
     # Check for and handle duplicate indices
-    duplicate_indices = df.index[df.index.duplicated()]
-    print(f"The total number of duplicates is: {len(duplicate_indices)}")
+    # duplicate_indices = df.index[df.index.duplicated()]
+    # print(f"The total number of duplicates is: {len(duplicate_indices)}")
 
-    if len(duplicate_indices) > 0:
-        # If duplicates are found, increment the duplicates by a small time offset
-        df.index = df.index + pd.to_timedelta(df.groupby(df.index).cumcount(), unit='ns')
+    # if len(duplicate_indices) > 0:
+    #     # If duplicates are found, increment the duplicates by a small time offset
+    #     df.index = df.index + pd.to_timedelta(df.groupby(df.index).cumcount(), unit='ns')
 
     # Optionally, infer the frequency of the time series and set it
-    inferred_freq = pd.infer_freq(df.index)
-    if inferred_freq:
-        df.index.freq = inferred_freq
-
+    # inferred_freq = pd.infer_freq(df.index)
+    # if inferred_freq:
+    #     df.index.freq = inferred_freq
     return df
 
 
