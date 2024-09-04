@@ -116,7 +116,7 @@ def create_dataframe(df, start_date):
     df['DateTime'] = pd.to_datetime(df['DateTime'])  # Convert the column to datetime
     df.index = pd.DatetimeIndex(df['DateTime'])
     # df.set_index('DateTime', inplace=True)  # Set the datetime column as the index
-
+    df = df.iloc[:, :-1]
 
     # Print the row every time the date changes
     # df['Date'] = df['DateTime'].dt.date
