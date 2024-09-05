@@ -3,14 +3,13 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scipy.fftpack import ifft
 from statsmodels.tsa.stattools import adfuller
 from scipy.ndimage import gaussian_filter1d
 from statsmodels.tsa.seasonal import seasonal_decompose
 from scipy import stats
-import gc
 from io import StringIO
-import time
+import matplotlib.dates as mdates
+import scipy.interpolate as interp
 
 
 def read_txt_file(file_path):
@@ -19,42 +18,6 @@ def read_txt_file(file_path):
         df = pd.read_csv(StringIO(data), sep = "	")
     return df
 
-# def get_data(read_txt_file, start_date, end_date):
-#     """
-#     Retrieves data from multiple files and concatenates them into a single string.
-
-#     Parameters:
-#     - file_type (str): The type of file to read (e.g., 'txt', 'csv', etc.).
-#     - read_txt_file (function): A function that reads a text file and returns its contents.
-#     - start_date (str): The start date in the format 'YYYY-MM-DD'.
-#     - end_date (str): The end date in the format 'YYYY-MM-DD'.
-
-#     Returns:
-#     - data (str): The concatenated data from all the files.
-#     """
-#     data = ''
-#     df = pd.DataFrame
-#     date_range = pd.date_range(start=start_date, end=end_date, freq='D')
-
-#     for single_date in date_range:
-#         file_path_ctu = f'/Users/tristan/Library/CloudStorage/OneDrive-StellenboschUniversity/Academics/Final_year/Semester 2/Skripsie/Data/SANSA/{single_date.strftime("%Y-%m-%d")}.ctumag'
-#         file_path_squ = f'/Users/tristan/Library/CloudStorage/OneDrive-StellenboschUniversity/Academics/Final_year/Semester 2/Skripsie/Data/SANSA/{single_date.strftime("%Y-%m-%d")}.squid'
-#         # file_path = f'/Users/tristan/Library/CloudStorage/OneDrive-StellenboschUniversity/Academics/Final_year/Semester 2/Skripsie/Data/DUMMY/{single_date.strftime("%Y-%m-%d")}.{file_type}'
-#         # print(file_path)
-#         try:
-#             df_ctu = read_txt_file(file_path_ctu)
-#             df_squ = read_txt_file(file_path_squ)
-#             df_ctu = df_ctu.drop(columns=[df_ctu.columns[0]])
-#             combined_df = pd.concat([df_squ, df_ctu], axis=1)
-#             # print(combined_df.head())
-#             new_df = create_dataframe(combined_df, single_date)
-#             df = df.append(new_df)
-#             del df_ctu, df_squ, combined_dßf, new_df
-#             gc.collect()
-#         except FileNotFoundError:
-#             print(f"File not found: {file_path_squ} or {file_path_ctu}")
-#             continue
-#     return df
 
 def get_data(read_txt_file, start_date, end_date):
     """
@@ -74,13 +37,14 @@ def get_data(read_txt_file, start_date, end_date):
     for single_date in date_range:
         file_path_ctu = f'/Users/tristan/Library/CloudStorage/OneDrive-StellenboschUniversity/Academics/Final_year/Semester 2/Skripsie/Data/SANSA/{single_date.strftime("%Y-%m-%d")}.ctumag'
         file_path_squ = f'/Users/tristan/Library/CloudStorage/OneDrive-StellenboschUniversity/Academics/Final_year/Semester 2/Skripsie/Data/SANSA/{single_date.strftime("%Y-%m-%d")}.squid'
-        
         try:
             df_ctu = read_txt_file(file_path_ctu)
-            df_ctu = df_ctu.drop(columns=[df_ctu.columns[0]])
+            df_ctu = df_ctu.drop(columns=[df_ctu.columns[0]]) # drop the time for ctu since squid already has time
             df_squ = read_txt_file(file_path_squ)
             combined_df = pd.concat([df_squ, df_ctu], axis=1)
             new_df = create_dataframe(combined_df, single_date)
+            # print(f"This is new df\n",new_df)
+            # print_duplicate_date(new_df)
             df_list.append(new_df)
         except FileNotFoundError:
             print(f"File not found for date: {single_date.strftime('%Y-%m-%d')}")
@@ -92,6 +56,11 @@ def get_data(read_txt_file, start_date, end_date):
         df = pd.DataFrame()
 
     return df
+
+def print_duplicate_date(df):
+    df['Date'] = df.index.date
+    df['Date_change'] = df['Date'].ne(df['Date'].shift())
+    print(df[df['Date_change']])
 
 
 def create_dataframe(df, start_date):
@@ -119,9 +88,7 @@ def create_dataframe(df, start_date):
     df = df.iloc[:, :-1]
 
     # Print the row every time the date changes
-    # df['Date'] = df['DateTime'].dt.date
-    # df['Date_change'] = df['Date'].ne(df['Date'].shift())
-    # print(df[df['Date_change']])
+    # print_duplicate_date(df)
     
     # Check for and handle duplicate indices
     # duplicate_indices = df.index[df.index.duplicated()]
@@ -303,8 +270,8 @@ def remove_outliers(df):
 
 def z_score_test(df, threshold_z=3):
     # Calculate the Z-scores for each column (excluding the index)
-    z = np.abs(stats.zscore(df.iloc[:, 1:]))  # Assumes the first column is to be excluded
-    
+    z = np.abs(stats.zscore(df))  
+
     # Find outlier indices
     outlier_indices = np.where(z > threshold_z)
     
@@ -476,6 +443,7 @@ def generateDataPlots(NSsq, Zsq, NSmag, EWmag, Zmag, sample_count, samples_per_d
     sample_count (int): Total number of samples.
     samples_per_day (int): Number of samples per day.
     start_date (str): The start date in the format 'YYYY-MM-DD'.
+    end_date (str): The end date in the format 'YYYY-MM-DD'.
 
     Returns:
     None
@@ -483,39 +451,58 @@ def generateDataPlots(NSsq, Zsq, NSmag, EWmag, Zmag, sample_count, samples_per_d
 
     fig, axs = plt.subplots(5, 1, figsize=(16, 10), sharex=True, num='Data Plots')
 
+    # Calculate the time interval between samples in seconds
+    total_days = pd.to_datetime(end_date) - pd.to_datetime(start_date)
+    total_seconds = total_days.total_seconds()
+    freq_in_seconds = (total_seconds / sample_count)
+
+    # Generate the time series using the calculated frequency
+    # time_series = pd.date_range(start=start_date, periods=sample_count, freq=f'{freq_in_seconds}S')
+
     # Plot Squid data
-    
-    axs[0].plot(NSsq, marker='.', color='red', linewidth = 0.5)
+    axs[0].plot( NSsq, marker='.', color='red', linewidth=0.2)
     axs[0].set_title('Squid NS Component')
     axs[0].set_ylabel('NS nT (relative)')
-    # axs[0].axhline(y=100, color='black', linestyle='--')
+    axs[0].grid(True, linestyle='--', alpha=0.7)
 
-    axs[1].plot(Zsq, marker='.', color='blue', linewidth = 0.5)
+    axs[1].plot( Zsq, marker='.', color='blue', linewidth=0.2)
     axs[1].set_title('Squid Z Component')
     axs[1].set_ylabel('Z nT (relative)')
+    axs[1].grid(True, linestyle='--', alpha=0.7)
 
     # Plot CTU Magnetometer data
-    axs[2].plot(NSmag, marker='.', color='orange', linewidth = 0.5)
+    axs[2].plot( NSmag, marker='.', color='orange', linewidth=0.2)
     axs[2].set_title('MAG NS Component')
     axs[2].set_ylabel('NS nT')
+    axs[2].grid(True, linestyle='--', alpha=0.7)
 
-    axs[3].plot(EWmag, marker='.', color='purple', linewidth = 0.5)
+    axs[3].plot(EWmag, marker='.', color='purple', linewidth=0.2)
     axs[3].set_title('MAG EW Component')
     axs[3].set_ylabel('EW nT')
+    axs[3].grid(True, linestyle='--', alpha=0.7)
 
-    axs[4].plot(Zmag, marker='.', color='green', linewidth = 0.5)
+    axs[4].plot(Zmag, marker='.', color='green', linewidth=0.2)
     axs[4].set_title('MAG Z Component')
     axs[4].set_ylabel('Z nT')
-    axs[4].set_xlabel('Data Points')
+    axs[4].set_xlabel('Time')
+    axs[4].grid(True, linestyle='--', alpha=0.7)
 
-    # Change x-axis labels to dates
-    # num_ticks = (datetime.strptime(end_date, '%Y-%m-%d') - datetime.strptime(start_date, '%Y-%m-%d')).days + 1
-    # tick_positions = np.linspace(-1, sample_count - 1, num_ticks)
-    # tick_labels = [(pos // samples_per_day) + 1 for pos in tick_positions]
-    # tick_dates = [(datetime.strptime(start_date, '%Y-%m-%d') + timedelta(days=label)).strftime('%Y-%m-%d') for label in tick_labels]
-    # axs[4].set_xticks(tick_positions)
-    # axs[4].set_xticklabels(tick_dates)
-    # axs[4].set_xlabel("Date")
+    # Format the x-axis with time ticks
+    # axs[4].xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+    # axs[4].xaxis.set_major_locator(mdates.DayLocator(interval=5))
+    # plt.xticks(rotation=45)
+
+    #Change x-axis labels to dates
+    num_ticks = (end_date-start_date).days + 2
+    tick_positions = np.linspace(-1, sample_count - 1, num_ticks)
+    tick_labels = [(pos // samples_per_day) + 1 for pos in tick_positions]
+    tick_dates = [(start_date + timedelta(days=label)).strftime('%Y-%m-%d') for label in tick_labels]
+    axs[4].set_xticks(tick_positions)
+    axs[4].set_xticklabels(tick_dates)
+    axs[4].set_xlabel("Date")
+
+    plt.tight_layout()
+    plt.show()
 
 def dickey_fuller_test(series):
     """
@@ -584,8 +571,26 @@ def test_stationarity(df):
 
     return decomposed_results
 
+def resample_time_series(df, start_date, end_date):
+  """Resamples time series data from 5Hz to 1 sample per minute for a given date range.
 
-def detect_spikes_and_correct(df, column_name, threshold=15):
+  Args:
+    df: Pandas DataFrame containing the time series data.
+    start_date: Start date for resampling.
+    end_date: End date for resampling.
+
+  Returns:
+    Resampled Pandas DataFrame with 1 sample per minute.
+  """
+
+  # Filter data for the specified date range
+  filtered_df = df[(df.index >= start_date) & (df.index < end_date)]
+  print(f"This is the size of the df for day ", start_date," has shape: ", filtered_df.shape, "before being resampled")
+  # Resample to 1 minute frequency
+  resampled_df = filtered_df.resample('s').mean()  # Adjust resampling method as needed
+  return resampled_df
+
+def detect_spikes_and_correct(df, column_name, threshold=20, check_window=2000):
     """
     Detects spikes in the data and smooths them by adjusting the spike value.
 
@@ -593,6 +598,8 @@ def detect_spikes_and_correct(df, column_name, threshold=15):
     - df (pd.DataFrame): The DataFrame containing the data.
     - column_name (str): The name of the column to check for spikes.
     - threshold (float): The threshold for detecting spikes in terms of standard deviations.
+    - check_window (int): The size of the window to consider for smoothing around spikes.
+    - strength (int): The strength of the Gaussian filter used for smoothing.
 
     Returns:
     - corrected_df (pd.DataFrame): The DataFrame with the spikes corrected.
@@ -601,41 +608,50 @@ def detect_spikes_and_correct(df, column_name, threshold=15):
     # Ensure the DataFrame index is a DatetimeIndex
     if not isinstance(df.index, pd.DatetimeIndex):
         raise ValueError("The DataFrame index must be a DatetimeIndex.")
-    
+
     # Calculate the difference between consecutive values
     diff = df[column_name].diff()
 
     # Detect spikes by finding where the difference exceeds the threshold
-    # std_dev = diff.std()
-    spikes = diff.abs() > threshold # * std_dev
-    # print(spikes)
-    # Get the indices where spikes occur
+    std_dev = diff.std()
+    spikes = diff.abs() > threshold * std_dev
     spike_indices = spikes[spikes].index
-    print(spike_indices)
+
     if len(spike_indices) == 0:
-        print("No spikes detected.")
+        print(f"No spikes detected in column '{column_name}'.")
         return df
 
-    # print(f"Spikes detected at indices: {spike_indices}")
-    print(f" Found ",len(spike_indices), "spikes")
+    print(f"Found {len(spike_indices)} spikes in column '{column_name}'.")
+
     corrected_df = df.copy()
 
     for index in spike_indices:
         # Find the positions before and after the spike
-        prev_index = corrected_df.index.get_loc(index) - 7500
-        next_index = corrected_df.index.get_loc(index) + 7500
- 
-        # my_window = next_index - prev_index
-        my_window = 4000
+        prev_index = corrected_df.index.get_loc(index) - check_window
+        next_index = corrected_df.index.get_loc(index) + check_window
 
+        # Ensure window boundaries are within the DataFrame
+        prev_index = max(0, prev_index)
+        next_index = min(len(df) - 1, next_index)
 
-        smoothed_values = corrected_df.iloc[prev_index:next_index + 1, corrected_df.columns.get_loc(column_name)].rolling(window=my_window, min_periods=1).mean()
-        smoothed_values = gaussian_filter1d(smoothed_values, sigma=2000)
+        # Apply cubic spline interpolation only between prev_index and next_index
+        x = np.arange(prev_index, next_index + 1)
+        y = corrected_df.iloc[prev_index:next_index + 1, corrected_df.columns.get_loc(column_name)]
+        tck = interp.splrep(x, y)
+        smoothed_values = interp.splev(x, tck)
+
+        # Replace the spike values with the smoothed values
         corrected_df.iloc[prev_index:next_index + 1, corrected_df.columns.get_loc(column_name)] = smoothed_values
-        # Apply moving average only between prev_index and next_index
-        # corrected_df.iloc[prev_index:next_index, corrected_df.columns.get_loc(column_name)] = corrected_df.iloc[prev_index:next_index, corrected_df.columns.get_loc(column_name)].rolling(window=my_window).mean()
 
     return corrected_df
+
+    #     # Apply Gaussian filter to the windowed data
+    #     smoothed_values = gaussian_filter1d(corrected_df.iloc[prev_index:next_index + 1, corrected_df.columns.get_loc(column_name)], sigma=strength)
+
+    #     # Replace the spike values with the smoothed values
+    #     corrected_df.iloc[prev_index:next_index + 1, corrected_df.columns.get_loc(column_name)] = smoothed_values
+
+    # return corrected_df
 
 def calculate_mean_of_five(df):
     # Initialize an empty DataFrame to store the means
