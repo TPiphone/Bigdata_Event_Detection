@@ -280,7 +280,7 @@ def z_score_test(df, threshold_z=3):
     removed_outliers_df = df.drop(df.index[rows_to_drop])
     
     # Print Z-scores
-    print(z)
+    # print(z)
     
     # Print the number of outliers removed
     print(f"Number of outliers removed: {len(df) - len(removed_outliers_df)}")
@@ -587,7 +587,9 @@ def resample_time_series(df, start_date, end_date):
   filtered_df = df[(df.index >= start_date) & (df.index < end_date)]
   print(f"This is the size of the df for day ", start_date," has shape: ", filtered_df.shape, "before being resampled")
   # Resample to 1 minute frequency
-  resampled_df = filtered_df.resample('s').mean()  # Adjust resampling method as needed
+  resampled_df = filtered_df.resample('min', origin = start_date).mean()  # Adjust resampling method as needed
+  resampled_df = resampled_df.dropna()
+  print(f"The shape of day ",start_date, " in the data is: ", resampled_df.shape, "after resampling")
   return resampled_df
 
 def detect_spikes_and_correct(df, column_name, threshold=20, check_window=2000):
@@ -653,23 +655,59 @@ def detect_spikes_and_correct(df, column_name, threshold=20, check_window=2000):
 
     # return corrected_df
 
-def calculate_mean_of_five(df):
-    # Initialize an empty DataFrame to store the means
-    df_means = pd.DataFrame()
+def calculate_mean_of_five_in_chunks(df, chunk_size=1000, step_size=60):
+    """
+    Processes the DataFrame in chunks, calculating the mean of every 'step_size' rows.
 
-    # Iterate over each column in the DataFrame
-    for column in df.columns:
-        # Initialize a list to hold the means for the current column
-        column_means = []
-        
-        # Iterate through the DataFrame in steps of 5
-        for i in range(0, len(df), 15):
-            # Get the mean of the current group of 5 numbers
-            group_mean = df[column].iloc[i:i+15].mean()
-            # Append the mean to the list for the current column
-            column_means.append(group_mean)
-        
-        # Add the list of means to the new DataFrame as a new column
-        df_means[column] = column_means
+    Parameters:
+    - df (pd.DataFrame): The original DataFrame with numerical data.
+    - chunk_size (int): The number of rows to process in each chunk.
+    - step_size (int): The number of rows to group for calculating the mean.
 
+    Returns:
+    - df_means (pd.DataFrame): A new DataFrame containing the means of every 'step_size' rows for each chunk.
+    """
+    # Initialize an empty list to store the result chunks
+    results = []
+
+    # Process the DataFrame in chunks
+    for start in range(0, len(df), chunk_size):
+        # Select a chunk of the DataFrame
+        df_chunk = df.iloc[start:start+chunk_size]
+        
+        # Initialize an empty DataFrame to store means for the current chunk
+        df_chunk_means = pd.DataFrame()
+
+        # Iterate over each column in the DataFrame chunk
+        for column in df_chunk.columns:
+            # Initialize a list to hold the means for the current column in this chunk
+            column_means = []
+
+            # Iterate through the chunk in steps of step_size (e.g., 15)
+            for i in range(0, len(df_chunk), step_size):
+                # Get the mean of the current group of step_size numbers
+                group = df_chunk[column].iloc[i:i+step_size]
+                # Check if the group contains a string
+                if group.dtype == object:
+                    # Convert the string to an integer if possible
+                    group = pd.to_numeric(group, errors='coerce')
+                # Get the mean of the current group
+                group_mean = group.mean()
+                # Append the mean to the list for the current column
+                column_means.append(group_mean)
+
+            # Add the list of means to the chunk DataFrame
+            df_chunk_means[column] = column_means
+
+        # Append the processed chunk means to the results list
+        results.append(df_chunk_means)
+
+    # Concatenate all chunk means into a single DataFrame
+    df_means = pd.concat(results, ignore_index=True)
+    
     return df_means
+
+def calculate_h_component(df):
+    h_component = np.sqrt(df['NS_Fluxgate']**2 + df['EW_Fluxgate']**2)
+    df.loc[:,"H Component"] = h_component
+    return df

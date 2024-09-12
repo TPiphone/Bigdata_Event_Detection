@@ -21,7 +21,7 @@ def combine_resampled_data(start_date, end_date):
   combined_df = pd.DataFrame()
   for day in pd.date_range(start_date, end_date, freq='D'):
     filename = f'/Users/tristan/Library/CloudStorage/OneDrive-StellenboschUniversity/Academics/Final_year/Semester 2/Skripsie/Data/MIN DATA/{day.strftime("%Y-%m-%d")}.csv'
-    day_df = pd.read_csv(filename, index_col=0, parse_dates=True, dtype=np.float32, skip_blank_lines=True)
+    day_df = pd.read_csv(filename, index_col=0, parse_dates=True, dtype=np.float32, skip_blank_lines=False)
     day_df = day_df.dropna()
     combined_df = pd.concat([combined_df, day_df])
 
