@@ -695,7 +695,6 @@ def calculate_mean_of_five_in_chunks(df, chunk_size=1000, step_size=60):
                 group_mean = group.mean()
                 # Append the mean to the list for the current column
                 column_means.append(group_mean)
-
             # Add the list of means to the chunk DataFrame
             df_chunk_means[column] = column_means
 
