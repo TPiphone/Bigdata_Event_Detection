@@ -35,8 +35,8 @@ def get_data(read_txt_file, start_date, end_date):
     df_list = []
 
     for single_date in date_range:
-        file_path_ctu = f'/Users/tristan/Library/CloudStorage/OneDrive-StellenboschUniversity/Academics/Final_year/Semester 2/Skripsie/Data/SANSA/{single_date.strftime("%Y-%m-%d")}.ctumag'
-        file_path_squ = f'/Users/tristan/Library/CloudStorage/OneDrive-StellenboschUniversity/Academics/Final_year/Semester 2/Skripsie/Data/SANSA/{single_date.strftime("%Y-%m-%d")}.squid'
+        file_path_ctu = f'/Users/tristan/Library/CloudStorage/OneDrive-StellenboschUniversity/Academics/Final_year/Semester_2/Skripsie/Data/SANSA/{single_date.strftime("%Y-%m-%d")}.ctumag'
+        file_path_squ = f'/Users/tristan/Library/CloudStorage/OneDrive-StellenboschUniversity/Academics/Final_year/Semester_2/Skripsie/Data/SANSA/{single_date.strftime("%Y-%m-%d")}.squid'
         try:
             df_ctu = read_txt_file(file_path_ctu)
             df_ctu = df_ctu.drop(columns=[df_ctu.columns[0]]) # drop the time for ctu since squid already has time
